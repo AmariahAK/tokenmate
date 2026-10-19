@@ -1,0 +1,52 @@
+{
+  "name": "tokenmate",
+  "version": "0.1.0",
+  "description": "Terminal chess where you bring your own AI.",
+  "license": "MIT",
+  "author": "Atlarix Team <support@atlarix.dev> (https://atlarix.dev)",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AmariahAK/tokenmate.git"
+  },
+  "bugs": "https://github.com/AmariahAK/tokenmate/issues",
+  "keywords": [
+    "chess",
+    "tui",
+    "terminal",
+    "cli",
+    "llm",
+    "ai",
+    "stockfish",
+    "lichess"
+  ],
+  "bin": {
+    "tokenmate": "bin/tokenmate.ts"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "scripts": {
+    "dev": "bun --watch src/index.tsx",
+    "start": "bun src/index.tsx",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@opentui/core": "0.6.6",
+    "@opentui/solid": "0.6.6",
+    "chess.js": "^1.4.0",
+    "solid-js": "1.9.12"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/bun": "^1.4.3",
+    "typescript": "^7.0.2"
+  }
+}

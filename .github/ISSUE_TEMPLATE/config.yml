@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/AmariahAK/tokenmate/security/advisories/new
+    about: Please report security issues privately, not as a public issue.
+  - name: Contact the maintainers
+    url: https://github.com/AmariahAK/tokenmate#maintainers
+    about: Questions for the Atlarix team (support@atlarix.dev).

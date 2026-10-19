@@ -1,0 +1,18 @@
+export const theme = {
+  lightSquare: "#8DA2B4",
+  darkSquare: "#61788C",
+  lastMoveLight: "#A3AE5E",
+  lastMoveDark: "#808C42",
+  cursor: "#4A8FD9",
+  selected: "#D6A537",
+  capture: "#C25A45",
+  whitePiece: "#FFFFFF",
+  blackPiece: "#0B0B0B",
+  hint: "#1E2A35",
+  label: "#8A97A3",
+  text: "#E6EDF3",
+  muted: "#8A97A3",
+  accent: "#E3B341",
+  danger: "#F07167",
+  border: "#3B4A57",
+};
