@@ -1,0 +1,49 @@
+name: Bug report
+description: Something in tokenmate isn't working
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please don't include API keys or other secrets. For security issues, follow [SECURITY.md](https://github.com/AmariahAK/tokenmate/blob/main/SECURITY.md) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `bun start`
+        2. Play e4, e5, ...
+        3. See the error
+    validations:
+      required: true
+  - type: textarea
+    id: position
+    attributes:
+      label: Position or game (optional)
+      description: A FEN or PGN that shows the problem, if it relates to a game.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: tokenmate version or commit
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS, terminal and Bun version
+      placeholder: macOS 26, Ghostty 1.2, Bun 1.4.2
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots (optional)
+      render: text
