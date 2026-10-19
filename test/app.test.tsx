@@ -232,8 +232,12 @@ describe("bot game", () => {
 
   test("you can't move the bot's pieces", async () => {
     const s = await mount({ game: { mode: "bot", level: "easy", color: "b" } });
-    await waitForFrame(s, (f) => f.includes("Black to move."));
-    await press(s, ["enter", "k", "enter"]);
-    expect(s.captureCharFrame()).toContain("Black to move.");
+    const before = await waitForFrame(s, (f) => f.includes("Black to move."));
+    // The flipped board puts white at the top: walk the cursor from e7 up to
+    // the white pawn on e2 and try to push it to e3.
+    await press(s, ["k", "k", "k", "k", "k", "enter", "j", "enter"]);
+    const after = s.captureCharFrame();
+    expect(after).toContain("Black to move.");
+    expect(after.match(/1\. {2}\S+.*/)?.[0]).toBe(before.match(/1\. {2}\S+.*/)?.[0]);
   });
 });
