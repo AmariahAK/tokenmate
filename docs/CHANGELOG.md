@@ -5,6 +5,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A built-in chess engine**, so tokenmate plays with nothing installed. Stockfish and any other UCI engine become an
+  optional upgrade rather than a prerequisite. `src/builtin/`: 0x88 board, alpha-beta search with quiescence, material
+  and piece-square evaluation, iterative deepening, loss-weighted multi-candidate output for the weak levels.
+- The built-in's move generation is verified against the six standard perft positions — startpos to depth 4 (197,281)
+  and Kiwipete to depth 3 (97,862) among them. Proved the suite can fail: dropping castling generation breaks 2 tests,
+  removing checkmate detection breaks 1, both green again on restore.
+- Built-in strength is reported as an **estimate** (depth 6 ≈ 1550 Elo), and a level that asks for more than the
+  built-in can play says so and names the fix instead of printing an Elo it cannot reach.
+
+### Changed
+
+- `startEngine` falls back to the built-in when nothing is on `PATH`, but a **named** engine (`--engine`, or
+  `$TOKENMATE_ENGINE`) that fails to start is still an error — no silent substitution.
+- `tokenmate doctor` leads with the built-in as always available and reports Stockfish as optional. The old
+  "missing — no UCI engine found" wording is gone, along with the test that asserted it.
+- Measured search cost, which sets the cap: depth 6 in 0.9–1.9 s middlegame, depth 7 needs 6–8 s.
+
 ### Fixed
 
 - A pty that reports `columns: 0` collapsed the entire screen to a one-column "terminal too small" message: the fallback

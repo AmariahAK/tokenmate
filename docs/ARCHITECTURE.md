@@ -12,6 +12,7 @@ cli.ts                 argv → mode, everything else is a library call
   │    ├─ ui/          pure rendering, no I/O, no chess knowledge beyond FEN
   │    └─ game/        pure state, no rendering
   │
+  ├─ builtin/          the engine we ship: board, movegen, eval, search
   ├─ engine/           subprocess boundary: one UCI engine, one ladder
   ├─ models/           HTTP boundary: catalogue, discovery, grounded move choice
   └─ import/           HTTP boundary: chess.com, Lichess
@@ -25,6 +26,27 @@ entire contract. This is what makes replay, review and spectate the same code pa
 randomness. That is what makes the Phase 2 gates meaningful: they can assert against exact bytes.
 
 ## Modules
+
+### `src/builtin/`
+
+| module | owns |
+| --- | --- |
+| `position.ts` | the 0x88 board, legal move generation, make/unmake, perft |
+| `eval.ts` | material and piece-square evaluation, in centipawns |
+| `search.ts` | negamax with alpha-beta, quiescence, iterative deepening |
+| `index.ts` | the seat the game loop drives, and level-to-depth mapping |
+
+This is the engine that makes the app playable with nothing installed; `engine/` is the *optional* UCI upgrade. The
+split matters: `builtin/` has no subprocess, no timeout and no stdout, so it is testable as plain functions.
+
+Correctness is defined by **perft** — the legal-move-sequence count from a position, checked against the six standard
+positions. A movegen bug changes a count, so the suite is the difference between "it plays chess" and "it looks like
+it plays chess". The search is deliberately plain: no transposition table and no null-move pruning, because strength is
+bounded by the per-move time budget anyway, and every feature added there is one more thing between a bug and the board.
+
+Strength claims carry a **ceiling**: the built-in tops out near 1550 Elo at depth 6, so a level asking for more says so
+and names the fix. Estimates are labelled `estimate` everywhere they appear, because there is no rated opponent to
+measure against.
 
 ### `src/ui/`
 

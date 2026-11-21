@@ -68,8 +68,8 @@ export function installHint(platform: string = process.platform): string {
 
 export function noEngineMessage(platform: string = process.platform): string {
   return [
-    "no UCI engine found, and tokenmate does not bundle one — the engine is a separate program you install.",
-    `install it (${platform}): ${installHint(platform)}`,
+    "no UCI engine found — tokenmate's built-in engine will play instead. A UCI engine is optional and stronger.",
+    `install one (${platform}): ${installHint(platform)}`,
     'or point at any UCI engine: --engine "/path/to/engine", or a command with arguments: --engine "gnuchess --uci"',
     "or set $TOKENMATE_ENGINE to the same thing.",
   ].join("\n");

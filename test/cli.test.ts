@@ -7,6 +7,7 @@ import { doctorReport, type DoctorFacts } from "../src/cli/doctor";
 import type { ColorMode } from "../src/ui/ansi";
 import type { Settings } from "../src/engine/any-uci";
 import { makeChat, splitRef, ChatConfigError } from "../src/models/chat";
+import { createBuiltin } from "../src/builtin/index";
 
 /**
  * A terminal that records frames and lets the test press keys. This is the only
@@ -137,6 +138,35 @@ describe("the game loop", () => {
     await Bun.sleep(0);
 
     expect(session.status().history.map((p) => p.san)).toEqual(["d4"]);
+    await terminal.press(char("q"));
+    await playing;
+  });
+
+  test("plays a real game against the built-in engine with nothing installed", async () => {
+    // This is the whole point of the built-in: no Stockfish, no process, no install.
+    // The seat is the real engine doing a real search, not a scripted fake.
+    const { opts, session, terminal } = base({
+      seatOf: { white: { kind: "human" }, black: { kind: "engine" } },
+      labelOf: { white: "you", black: "built-in · level 4" },
+      engine: createBuiltin(4),
+      level: 4,
+      levelElo: 750,
+    });
+    const playing = runGame(opts);
+
+    await terminal.press(down);
+    await terminal.press(down); // e2
+    await terminal.press(select);
+    await terminal.press(up);
+    await terminal.press(up); // e4
+    await terminal.press(select);
+
+    for (let i = 0; i < 600 && session.status().history.length < 2; i++) await Bun.sleep(5);
+
+    const history = session.status().history.map((p) => p.san);
+    expect(history[0]).toBe("e4");
+    expect(history).toHaveLength(2);
+    expect(terminal.last).toContain("built-in");
     await terminal.press(char("q"));
     await playing;
   });
@@ -308,16 +338,19 @@ describe("doctor", () => {
     expect(text).toContain("no saved game");
   });
 
-  test("a missing engine says so without pretending the app is broken", () => {
+  test("a missing UCI engine is reported as optional, not as a broken app", () => {
     const text = doctorReport(
       facts({
         engine: { source: null, cmd: [], id: null, probe: null, error: "no UCI engine found\ninstall it (darwin): brew install stockfish" },
       }),
     ).join("\n");
-    expect(text).toContain("missing — no UCI engine found");
+    // The built-in engine is what makes `play` work with nothing installed, so the
+    // absence of Stockfish is an upgrade opportunity rather than an error state.
+    expect(text).toContain("built-in — always available");
+    expect(text).toContain("uci engine — not found; optional");
+    expect(text).not.toContain("missing —");
     // The install hint is indented under the message, not jammed onto one line.
     expect(text).toContain("\n  install it (darwin): brew install stockfish");
-    expect(text).toContain("board, replay and import do not");
   });
 
   test("a build that cannot reach the top level says so", () => {

@@ -30,28 +30,30 @@ Requires [Bun](https://bun.sh) 1.4 or newer.
 
 ### The engine
 
-tokenmate does **not** bundle a chess engine. Engines like Stockfish are GPL-3.0; tokenmate is MIT, and shipping one
-inside the package would force the whole project to GPL. So you bring the engine and tokenmate drives it over UCI,
-as a separate process.
+**tokenmate ships its own chess engine**, so it plays the moment you install it — no Stockfish, no extra step. It is
+written in this repo, MIT-licensed like the rest of it: 0x88 board, alpha-beta search with quiescence, material and
+piece-square evaluation. Its movegen is verified against the six standard [perft](https://www.chessprogramming.org/Perft_Results)
+positions, so it is a real engine rather than a plausible-looking one.
+
+Stockfish (or any UCI engine) is an **optional upgrade**, because a stronger engine plays above the built-in's ceiling
+of roughly 1550 Elo. tokenmate does **not** bundle one: engines like Stockfish are GPL-3.0, tokenmate is MIT, and
+shipping one inside the package would force the whole project to GPL.
 
 ```bash
-# macOS
-brew install stockfish
-
-# Debian / Ubuntu
-sudo apt install stockfish
-
-# Windows (Chocolatey)
-choco install stockfish
+# Optional — only if you want stronger play than the built-in
+brew install stockfish        # macOS
+sudo apt install stockfish    # Debian / Ubuntu
+choco install stockfish       # Windows (Chocolatey)
 ```
 
-tokenmate finds it in this order:
+When one is installed, tokenmate finds it in this order:
 
 1. `--engine <path or command>` — e.g. `--engine /opt/homebrew/bin/stockfish`
 2. `$TOKENMATE_ENGINE`
 3. `stockfish` on your `PATH`
 
-Anything that speaks UCI works, not just Stockfish. Check what you have:
+Anything that speaks UCI works, not just Stockfish. A named engine that fails to start is an error you see, not a
+silent switch back to the built-in. Check what you have:
 
 ```bash
 tokenmate doctor

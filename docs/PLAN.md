@@ -14,27 +14,37 @@ The five rules the build enforces are in [ARCHITECTURE.md](ARCHITECTURE.md#invar
 
 ---
 
-## Decision: MIT app, user-supplied engine
+## Decision: MIT app, engine ships with us (revised 2026-11-21)
 
 | package | version | licence | shipped by us? |
 | --- | --- | --- | --- |
 | `stockfish` | 19.0.1 | **GPL-3.0** | **no** |
+| our own engine (`src/builtin/`) | — | MIT | yes |
 | `@opentui/core` | 0.9.7 | MIT | yes |
 | `chess.js` | 1.4.0 | BSD-2-Clause | yes |
 | `zod` | 4.6.7 | MIT | yes |
 
-We never redistribute the engine. The repo, the npm package and every release artefact contain zero GPL code. Stockfish
-is a runtime dependency the user installs, driven as a separate process over UCI.
+**Owner's decision:** tokenmate must be playable with nothing installed, so it ships an engine of our own. Stockfish is
+an *optional upgrade*, not a prerequisite. This supersedes the earlier "user supplies the engine" answer: the licence
+reasoning was right (we still never redistribute a GPL binary), but making the engine mandatory made the app inert on a
+fresh machine.
 
-- **Resolution order:** `--engine <path or command>` → `$TOKENMATE_ENGINE` → `stockfish` on `PATH` → fail with the exact
-  install command for the OS.
-- **`tokenmate doctor`** reports the Bun version, whether an engine was found and its version, the `UCI_Elo` range it
-  accepts, and whether the model catalogue cache is warm.
-- **Degrades, never refuses:** the board, PGN replay, import and review all work with **no engine present**. Only
-  playing and live analysis need one.
-- **Strength depends on the user's build.** A distro Stockfish 14 will not reach 2800; `doctor` says so rather than the
-  ladder lying about its top level.
+The built-in is `src/builtin/`: a 0x88 board with alpha-beta search, quiescence, material and piece-square evaluation.
+Its movegen is verified against the six standard perft positions (startpos, Kiwipete and four others), which is the only
+thing that makes "it plays chess" a checkable claim rather than a hopeful one.
+
+- **It is the default.** `play` uses the built-in unless you name an engine.
+- **Resolution order when you do:** `--engine <path or command>` → `$TOKENMATE_ENGINE` → `stockfish` on `PATH` → built-in.
+- **A named engine that fails to start is an error**, never a silent substitution back to the built-in.
+- **`tokenmate doctor`** reports the built-in's ceiling, whether a UCI engine was found, and the `UCI_Elo` range it accepts.
+- **Strength is stated as an estimate.** We have no rated opponent to play a match against, so every built-in level prints
+  "estimate", and `doctor` says the same. Above the built-in's ceiling a level says so and points at the fix.
 - **No auto-download.** An optional `tokenmate engine install` shells out to the user's own package manager.
+
+### Built-in ceilings, measured
+
+Depth 6 costs 0.9–1.9 s in the middlegame; depth 7 needs 6–8 s, so 6 is the cap and the note says "up to depth N"
+because the move clock can stop the search earlier. Estimated Elo by depth: 2→700, 3→1000, 4→1200, 5→1400, 6→1550.
 
 ## What we took from chess-tui — and what we refused
 

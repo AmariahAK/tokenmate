@@ -40,6 +40,8 @@ derivation and centring proof all passed their gates in the prototype, and re-de
 
 ## Phase 3 — Engine + ladder
 
+- [x] `src/builtin/` — **a shipped engine**: 0x88 movegen, alpha-beta + quiescence, material/PST eval, perft-verified
+      against the six standard positions (owner decision: playable with nothing installed; Stockfish optional)
 - [x] `src/engine/resolve.ts` — resolution order, commands with args, friendly OS-specific failure
 - [x] `tokenmate doctor` — Bun, engine found + version, `UCI_Elo` range, cache warmth
 - [x] `src/engine/uci.ts` — spawn, handshake, `MultiPV`, teardown with no orphan processes, capability probe

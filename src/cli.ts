@@ -9,6 +9,7 @@ import { UciEngine } from "./engine/uci";
 import type { Candidate } from "./engine/uci";
 import { installHint, resolveEngine } from "./engine/resolve";
 import { adapt } from "./engine/any-uci";
+import { BUILTIN_LABEL, createBuiltin } from "./builtin/index";
 import { levelInfo, LEVELS } from "./engine/ladder";
 import { themeByKey, themes } from "./ui/theme";
 import { gameScreen } from "./ui/screens";
@@ -33,36 +34,62 @@ const out = (line = "") => {
  * Its absence is therefore an ordinary state, not a crash: `play` needs one,
  * everything else works without.
  */
-async function startEngine(explicit: string | null, level: number): Promise<{ seat: EngineSeat; name: string }> {
-  const resolved = resolveEngine(explicit ?? undefined);
-  const engine = new UciEngine(resolved.cmd, { goTimeout: 15_000 });
-  const probe = await engine.start();
-  const settings = adapt(level, probe);
-  for (const [name, value] of Object.entries(settings.options)) await engine.setOption(name, value);
-  await engine.newGame();
+type StartedEngine = { seat: EngineSeat; name: string; kind: "uci" | "builtin"; elo: number | null };
 
-  const seat: EngineSeat = {
-    settings,
-    async search(fen, depth) {
-      await engine.position(fen, []);
-      const result = await engine.go(depth === null ? settings.go : { ...settings.go, depth });
-      const lines = [...result.info].filter((l) => l.pv.length).sort((a, b) => a.multipv - b.multipv);
-      const seen = new Set<string>();
-      const candidates: Candidate[] = [];
-      for (const line of lines) {
-        const move = line.pv[0]!;
-        if (seen.has(move)) continue;
-        seen.add(move);
-        candidates.push({ move, score: line.score });
-      }
-      // A `go` that reported no info still has a bestmove; without it the level has
-      // nothing to sample and the game would stall.
-      if (!candidates.length && result.bestmove && result.bestmove !== "0000")
-        candidates.push({ move: result.bestmove, score: { type: "cp", value: 0 } });
-      return candidates;
-    },
+/**
+ * Stockfish, or any UCI engine, is an upgrade: tokenmate ships its own engine and
+ * falls back to it, so `play` works on a machine where nothing is installed. An
+ * engine the user named explicitly is different — failing to start one they asked
+ * for by name deserves the error, not a silent substitution.
+ */
+async function startEngine(explicit: string | null, level: number): Promise<StartedEngine> {
+  const builtin = (): StartedEngine => {
+    const seat = createBuiltin(level);
+    return { seat, name: BUILTIN_LABEL, kind: "builtin", elo: seat.settings.elo };
   };
-  return { seat, name: engine.id ?? resolved.cmd[0] ?? "engine" };
+
+  let resolved: ReturnType<typeof resolveEngine>;
+  try {
+    resolved = resolveEngine(explicit ?? undefined);
+  } catch (err) {
+    if (explicit) throw err;
+    return builtin();
+  }
+
+  try {
+    const engine = new UciEngine(resolved.cmd, { goTimeout: 15_000 });
+    const probe = await engine.start();
+    const settings = adapt(level, probe);
+    for (const [name, value] of Object.entries(settings.options)) await engine.setOption(name, value);
+    await engine.newGame();
+
+    const seat: EngineSeat = {
+      settings,
+      async search(fen, depth) {
+        await engine.position(fen, []);
+        const result = await engine.go(depth === null ? settings.go : { ...settings.go, depth });
+        const lines = [...result.info].filter((l) => l.pv.length).sort((a, b) => a.multipv - b.multipv);
+        const seen = new Set<string>();
+        const candidates: Candidate[] = [];
+        for (const line of lines) {
+          const move = line.pv[0]!;
+          if (seen.has(move)) continue;
+          seen.add(move);
+          candidates.push({ move, score: line.score });
+        }
+        // A `go` that reported no info still has a bestmove; without it the level has
+        // nothing to sample and the game would stall.
+        if (!candidates.length && result.bestmove && result.bestmove !== "0000")
+          candidates.push({ move: result.bestmove, score: { type: "cp", value: 0 } });
+        return candidates;
+      },
+    };
+    return { seat, name: engine.id ?? resolved.cmd[0] ?? "engine", kind: "uci", elo: settings.elo };
+  } catch (err) {
+    // Nothing on PATH is an ordinary state; a named engine that will not start is not.
+    if (resolved.source !== "path") throw err;
+    return builtin();
+  }
 }
 
 async function cacheFiles(): Promise<{ count: number; bytes: number }> {
@@ -255,10 +282,11 @@ async function cmdReplay(file: string): Promise<number> {
 
 type Seats = { white: Seat; black: Seat; labelWhite: string; labelBlack: string };
 
-async function buildSeats(o: PlayOpts, engineSeat: EngineSeat | null, engineName: string | null): Promise<Seats> {
+async function buildSeats(o: PlayOpts, engineSeat: EngineSeat | null, engineName: string | null, engineKind: "uci" | "builtin" | null): Promise<Seats> {
   const human: Seat = { kind: "human" };
   const engine: Seat = { kind: "engine" };
-  const engineLabel = engineName ? `engine · level ${o.level}` : "engine";
+  const engineLabel =
+    engineKind === "builtin" ? `built-in · level ${o.level}` : engineName ? `engine · level ${o.level}` : "engine";
 
   if (o.opponent === "engine") {
     return o.color === "black"
@@ -311,24 +339,17 @@ async function cmdPlay(o: PlayOpts): Promise<number> {
   }
   const info = levelInfo(o.level);
 
-  let engineSeat: EngineSeat | null = null;
-  let engineName: string | null = null;
-  try {
-    const started = await startEngine(o.engine, o.level);
-    engineSeat = started.seat;
-    engineName = started.name;
-  } catch (err) {
-    const needsEngine = o.opponent === "engine" || o.opponent === "model-vs-engine";
-    if (needsEngine) {
-      out(err instanceof Error ? err.message : String(err));
-      out("");
-      out(installHint());
-      return 1;
-    }
-    out("no engine found — the board works, analysis does not");
-  }
+  const started = await startEngine(o.engine, o.level).catch((err: unknown) => {
+    out(err instanceof Error ? err.message : String(err));
+    out("");
+    out(installHint());
+    return null;
+  });
+  if (!started) return 1;
+  const engineSeat: EngineSeat = started.seat;
+  const engineName: string | null = started.name;
 
-  const seats = await buildSeats(o, engineSeat, engineName);
+  const seats = await buildSeats(o, engineSeat, engineName, started.kind);
   const session = Session.newGame({
     ...(o.clocks ? { clock: o.clocks } : {}),
     ...(o.seed !== null ? { seed: o.seed } : {}),
@@ -346,7 +367,7 @@ async function cmdPlay(o: PlayOpts): Promise<number> {
       labelOf: { white: seats.labelWhite, black: seats.labelBlack },
       engine: engineSeat,
       level: o.level,
-      levelElo: info.elo,
+      levelElo: started.elo ?? info.elo,
       depth: o.depth,
     });
   } finally {
@@ -365,8 +386,11 @@ async function cmdResume(): Promise<number> {
   const session = loadSave();
   const info = levelInfo(8);
   let engineSeat: EngineSeat | null = null;
+  let levelElo = info.elo;
   try {
-    engineSeat = (await startEngine(null, 8)).seat;
+    const started = await startEngine(null, 8);
+    engineSeat = started.seat;
+    levelElo = started.elo ?? info.elo;
   } catch {
     // Resuming without an engine still lets the position be replayed and exported.
   }
@@ -381,7 +405,7 @@ async function cmdResume(): Promise<number> {
       labelOf: session.players,
       engine: engineSeat,
       level: 8,
-      levelElo: info.elo,
+      levelElo,
       depth: null,
     });
   } finally {

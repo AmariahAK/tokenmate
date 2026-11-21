@@ -1,4 +1,5 @@
 import { LEVELS } from "../engine/ladder";
+import { BUILTIN_CAP } from "../builtin/index";
 import { strengthNote } from "../engine/any-uci";
 import { redact } from "../models/config";
 import type { Probe } from "../engine/uci";
@@ -46,13 +47,13 @@ export function doctorReport(f: DoctorFacts): string[] {
   lines.push("");
 
   lines.push("engine");
+  lines.push(`  built-in — always available, levels 1–${LEVELS.length}, no install needed`);
+  lines.push(`${pad("  ceiling")}about ${BUILTIN_CAP} Elo (estimate); a UCI engine raises it`);
   if (f.engine.error) {
     // The error is often several lines (a message plus an install hint), so it is
     // indented line by line rather than dropped in after a dash.
-    const [first, ...rest] = f.engine.error.split("\n");
-    lines.push(`  missing — ${first ?? ""}`);
-    for (const line of rest) lines.push(`  ${line}`);
-    lines.push("  playing and analysis need one; board, replay and import do not.");
+    lines.push("  uci engine — not found; optional, and it plays above the built-in");
+    for (const line of f.engine.error.split("\n")) lines.push(`  ${line}`);
   } else {
     lines.push(`  ${f.engine.id ?? "an engine that did not name itself"}`);
     lines.push(`${pad("  from")}${f.engine.source ?? "unknown"}`);
