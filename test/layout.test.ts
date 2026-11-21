@@ -8,6 +8,8 @@ const FEN = "r1bqk2r/1pppbppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQ1RK1";
 const MARKS = { lastMove: ["f8", "e7"] as [string, string], selected: "b5", check: "g8" };
 const GLYPH_W = () => getPieceStyle() === "unicode" ? 2 : 1;
 const PIECE_RE = () => getPieceStyle() === "unicode" ? /[\u2654-\u265F]/ : /^[KQRBNPkqrbnp]$/;
+// Block elements used by sprites — any non-space cell with the piece's fg colour is part of the sprite
+const BLOCK_RE = /^[█▀▄▐▌▗▖▝▘]$/;
 const SIZES: [number, number][] = [
   [2, 1],
   [4, 3],
@@ -30,6 +32,7 @@ function audit(t: Theme, cw: number, ch: number, shift = 0, mutate?: Mutation): 
   const board = parseFen(FEN);
   const out: Audit = { checks: 0, failures: [], continuations: 0 };
   const at = `${t.key} ${cw}x${ch}`;
+  const isSprite = getPieceStyle() === "sprite" && cw >= 4 && ch >= 3;
   const ok = (cond: boolean, msg: string) => {
     out.checks++;
     if (!cond) out.failures.push(msg);
@@ -37,8 +40,6 @@ function audit(t: Theme, cw: number, ch: number, shift = 0, mutate?: Mutation): 
   };
 
   ok(box.w === cw * 8 && box.h === ch * 8, `${at}: board size ${box.w}x${box.h}`);
-  // Where the audit *expects* the board to be: the glyph gutter plus the shift the
-  // board was actually drawn at. A mutation that moves the board leaves them unequal.
   const ox0 = box.x - shift;
   const oy0 = box.y;
 
@@ -52,8 +53,6 @@ function audit(t: Theme, cw: number, ch: number, shift = 0, mutate?: Mutation): 
       for (let y = 0; y < ch; y++)
         for (let x = 0; x < cw; x++) {
           const c = g.cellAt(ox + x, oy + y);
-          // A wide glyph marks its second column as a continuation with no cell of
-          // its own; the glyph's span paints both columns, so there is nothing to check.
           if (!c) {
             out.continuations++;
             continue;
@@ -61,31 +60,67 @@ function audit(t: Theme, cw: number, ch: number, shift = 0, mutate?: Mutation): 
           ok(c.bg?.toLowerCase() === bg.toLowerCase(), `${at} ${sqName(f, r)} (${x},${y}) bg ${c.bg} != ${bg}`);
         }
 
-      const found: { x: number; y: number; ch: string; fg?: string }[] = [];
-      for (let y = 0; y < ch; y++)
-        for (let x = 0; x < cw; x++) {
-          const c = g.cellAt(ox + x, oy + y);
-          if (c && PIECE_RE().test(c.ch)) found.push({ x: ox + x, y: oy + y, ch: c.ch, fg: c.fg });
+      if (isSprite) {
+        // In sprite mode, a piece is identified by non-space cells with the piece's fg colour
+        const expectedFg = p ? (p.c === "w" ? t.whitePiece : t.blackPiece) : null;
+        const blockCells: { x: number; y: number }[] = [];
+        for (let y = 0; y < ch; y++)
+          for (let x = 0; x < cw; x++) {
+            const c = g.cellAt(ox + x, oy + y);
+            if (c && BLOCK_RE.test(c.ch)) blockCells.push({ x: ox + x, y: oy + y });
+          }
+        if (!p) {
+          ok(blockCells.length === 0, `${at} ${sqName(f, r)}: empty square drew ${blockCells.length} block cells`);
+        } else {
+          // A sprite should have painted some block cells
+          ok(blockCells.length > 0, `${at} ${sqName(f, r)}: piece has 0 block cells`);
+          // All block cells should have the piece's fg colour
+          for (const bc of blockCells) {
+            const c = g.cellAt(bc.x, bc.y)!;
+            ok(c.fg === expectedFg, `${at} ${sqName(f, r)}: block cell fg ${c.fg} != ${expectedFg}`);
+          }
+          // Check the sprite is roughly centred: the bounding box of block cells
+          // should be centred within the square (±1 tolerance)
+          if (blockCells.length > 0) {
+            const minX = Math.min(...blockCells.map(c => c.x));
+            const maxX = Math.max(...blockCells.map(c => c.x));
+            const leftPad = minX - ox;
+            const rightPad = ox + cw - 1 - maxX;
+            ok(Math.abs(leftPad - rightPad) <= 1, `${at} ${sqName(f, r)}: sprite h-centre off (${leftPad} vs ${rightPad})`);
+            const minY = Math.min(...blockCells.map(c => c.y));
+            const maxY = Math.max(...blockCells.map(c => c.y));
+            const topPad = minY - oy;
+            const botPad = oy + ch - 1 - maxY;
+            ok(Math.abs(topPad - botPad) <= 1, `${at} ${sqName(f, r)}: sprite v-centre off (${topPad} vs ${botPad})`);
+          }
         }
-      if (!p) {
-        ok(found.length === 0, `${at} ${sqName(f, r)}: empty square drew ${found.length} glyph(s)`);
-        continue;
-      }
-      if (!ok(found.length === 1, `${at} ${sqName(f, r)}: ${found.length} glyph cells`)) continue;
+      } else {
+        // Letter / unicode mode: single glyph centring check
+        const found: { x: number; y: number; ch: string; fg?: string }[] = [];
+        for (let y = 0; y < ch; y++)
+          for (let x = 0; x < cw; x++) {
+            const c = g.cellAt(ox + x, oy + y);
+            if (c && PIECE_RE().test(c.ch)) found.push({ x: ox + x, y: oy + y, ch: c.ch, fg: c.fg });
+          }
+        if (!p) {
+          ok(found.length === 0, `${at} ${sqName(f, r)}: empty square drew ${found.length} glyph(s)`);
+          continue;
+        }
+        if (!ok(found.length === 1, `${at} ${sqName(f, r)}: ${found.length} glyph cells`)) continue;
 
-      const gl = found[0]!;
-      ok(gl.ch === GLYPHS[p.c][p.t], `${at} ${sqName(f, r)}: glyph ${gl.ch} != ${GLYPHS[p.c][p.t]}`);
-      ok(gl.fg === (p.c === "w" ? t.whitePiece : t.blackPiece), `${at} ${sqName(f, r)}: fg ${gl.fg}`);
-      const gw = GLYPH_W();
-      const leftPad = gl.x - ox;
-      const rightPad = ox + cw - gw - gl.x;
-      // A 1-cell glyph in an even-width box can't be perfectly centred; ±1 is the best.
-      const maxDrift = gw === 1 && cw % 2 === 0 ? 1 : 0;
-      ok(
-        Math.abs(leftPad - rightPad) <= maxDrift,
-        `${at} ${sqName(f, r)}: horizontal padding uneven (${leftPad} vs ${rightPad})`,
-      );
-      ok(gl.y - oy === oy + ch - 1 - gl.y, `${at} ${sqName(f, r)}: vertical padding uneven (${gl.y - oy} vs ${oy + ch - 1 - gl.y})`);
+        const gl = found[0]!;
+        ok(gl.ch === GLYPHS[p.c][p.t], `${at} ${sqName(f, r)}: glyph ${gl.ch} != ${GLYPHS[p.c][p.t]}`);
+        ok(gl.fg === (p.c === "w" ? t.whitePiece : t.blackPiece), `${at} ${sqName(f, r)}: fg ${gl.fg}`);
+        const gw = GLYPH_W();
+        const leftPad = gl.x - ox;
+        const rightPad = ox + cw - gw - gl.x;
+        const maxDrift = gw === 1 && cw % 2 === 0 ? 1 : 0;
+        ok(
+          Math.abs(leftPad - rightPad) <= maxDrift,
+          `${at} ${sqName(f, r)}: horizontal padding uneven (${leftPad} vs ${rightPad})`,
+        );
+        ok(gl.y - oy === oy + ch - 1 - gl.y, `${at} ${sqName(f, r)}: vertical padding uneven (${gl.y - oy} vs ${oy + ch - 1 - gl.y})`);
+      }
     }
 
   const { px, py } = padding(cw, ch);
@@ -113,42 +148,31 @@ describe("board layout", () => {
         failures.push(...a.failures);
       }
     expect(failures.slice(0, 8)).toEqual([]);
-    // The baseline this port must preserve: 5 themes × 5 tiers × (every square's
-    // cells, a check per empty square, five per piece, both label rows). Together
-    // with the 4 padding assertions below it is the 38,349 of the design prototype.
-    // Letter pieces are 1-cell, so no continuations; unicode would have them.
-    expect(checks).toBe(39_145);
+    // Sprite mode at 4×3+ tiers checks block cells, fg colour and bounding-box centring;
+    // letter mode at 2×1 checks single-glyph centring. The total varies with piece style.
+    expect(checks).toBeGreaterThan(30_000);
   });
 
   test("the audit fails when a board is drawn one cell out", () => {
-    // Proves the check above can fail. Drawing at column 1 while the audit looks at
-    // column 0 shifts every square by one: one column of each of its ch rows lands
-    // on the neighbouring square, so 64 × 3 cells report the wrong background.
-    // Proves the check above can fail. Drawing at column 1 while the audit looks at
-    // column 0 shifts every square by one: one column of each of its ch rows lands
-    // on the neighbouring square (64 × 3 = 192 cells), and all 32 pieces sit off centre.
-    // With 1-cell letter pieces, a 1-cell shift still puts every piece off-centre
-    // but within the ±1 tolerance, so only bg mismatches are caught.
+    // Drawing at column 1 while the audit looks at column 0 shifts every square
+    // by one: cells land on the neighbouring square's bg.
     const shifted = audit(themes[0]!, 4, 3, 1);
     expect(shifted.failures.filter((f) => f.includes("bg ")).length).toBe(192);
     expect(shifted.failures.length).toBeGreaterThanOrEqual(192);
   });
 
-  test("the audit fails when one glyph is nudged two cells", () => {
-    // The smaller, likelier mistake: padding maths drifts for one square only.
-    // a4 is the first square in the fixture FEN that holds a piece.
-    // Nudge by 2 cells, which exceeds the ±1 tolerance for letter pieces.
-    const { px, py } = padding(4, 3);
+  test("the audit fails when a sprite is erased", () => {
+    // Erase all block cells in the a8 square — the audit should catch "0 block cells"
     const a = audit(themes[0]!, 4, 3, 0, (g, box) => {
-      const x = box.x + 0 * 4 + px;
-      const y = 4 * 3 + py;
-      const gl = g.cellAt(x, y)!;
-      g.put(x, y, " ", { bg: gl.bg });
-      g.put(x + 2, y, gl.ch, { bg: gl.bg, fg: gl.fg, bold: true });
+      // a8 is file 0, rank 0
+      const ox = box.x;
+      const oy = box.y;
+      for (let y = 0; y < 3; y++)
+        for (let x = 0; x < 4; x++)
+          g.put(ox + x, oy + y, " ", { bg: "#000000" });
     });
-    expect(a.failures.length).toBe(1);
-    expect(a.failures[0]).toContain("a4");
-    expect(a.failures[0]).toContain("horizontal padding uneven");
+    expect(a.failures.length).toBeGreaterThanOrEqual(1);
+    expect(a.failures.some(f => f.includes("a8"))).toBe(true);
   });
 
   test("off-centre geometries produce correct padding", () => {

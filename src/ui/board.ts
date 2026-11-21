@@ -1,10 +1,12 @@
 import { Grid } from "./grid";
 import { square, type State, type Theme } from "./theme";
+import { SPRITES, type Sprite } from "./sprites";
 
-// Two piece styles: Unicode chess glyphs (pretty but tiny in most terminal fonts)
-// and uppercase/lowercase letters (fill the cell and are always legible).
-// The default is "letter" because it works in every font at every size.
-export type PieceStyle = "letter" | "unicode";
+// Three piece styles:
+//   "sprite" — block-art silhouettes that fill the 4×3 square (default)
+//   "letter" — uppercase/lowercase letters, always legible
+//   "unicode" — chess glyphs (♔♕♖…), pretty but tiny in most terminal fonts
+export type PieceStyle = "sprite" | "letter" | "unicode";
 
 const UNICODE_GLYPHS: Record<"w" | "b", Record<string, string>> = {
   w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
@@ -16,7 +18,7 @@ const LETTER_GLYPHS: Record<"w" | "b", Record<string, string>> = {
   b: { k: "k", q: "q", r: "r", b: "b", n: "n", p: "p" },
 };
 
-let activePieceStyle: PieceStyle = "letter";
+let activePieceStyle: PieceStyle = "sprite";
 export const setPieceStyle = (s: PieceStyle) => { activePieceStyle = s; };
 export const getPieceStyle = () => activePieceStyle;
 
@@ -96,11 +98,51 @@ export function drawSquareBox(
   glyph: string | null,
   bg: string,
   fg = "#FFFFFF",
+  piece?: { t: string; c: "w" | "b" } | null,
 ) {
   g.fill(x, y, cw, ch, { bg });
+
+  // Sprite mode: paint the full block-art silhouette
+  if (activePieceStyle === "sprite" && piece && cw >= 4 && ch >= 3) {
+    const sprite = SPRITES[piece.t];
+    if (sprite) {
+      drawSprite(g, x, y, cw, ch, sprite, fg, bg);
+      return;
+    }
+  }
+
+  // Fallback: single glyph centred in the square
   if (!glyph) return;
   const { px, py } = padding(cw, ch);
   g.put(x + px, y + py, glyph, { fg, bg, bold: true });
+}
+
+// Paint a 4×3 sprite centred in a cw×ch square.
+// Non-space characters get the piece colour; spaces are transparent (show bg).
+function drawSprite(
+  g: Grid,
+  x: number,
+  y: number,
+  cw: number,
+  ch: number,
+  sprite: Sprite,
+  fg: string,
+  bg: string,
+) {
+  const ox = Math.floor((cw - 4) / 2);
+  const oy = Math.floor((ch - 3) / 2);
+  for (let row = 0; row < 3; row++) {
+    const line = sprite[row]!;
+    const chars = [...line];
+    for (let col = 0; col < 4; col++) {
+      const ch_char = chars[col] ?? " ";
+      const cx = x + ox + col;
+      const cy = y + oy + row;
+      if (ch_char !== " ") {
+        g.put(cx, cy, ch_char, { fg, bg, bold: true });
+      }
+    }
+  }
 }
 
 // A terminal cannot scale a glyph, so the size lives in the square, not the piece.
@@ -116,7 +158,7 @@ export function drawBoxes(g: Grid, x: number, y: number, fen: string, t: Theme, 
       const p = board[r]?.[f] ?? null;
       const bg = square(t, (f + r) % 2 === 0, stateOf(o, sqName(f, r)));
       drawSquareBox(g, bx + f * cw, y + r * ch, cw, ch, p ? (GLYPHS[p.c][p.t] ?? null) : null, bg,
-        p?.c === "b" ? t.blackPiece : t.whitePiece);
+        p?.c === "b" ? t.blackPiece : t.whitePiece, p);
     }
   }
   if (showCoords) {
