@@ -1,6 +1,6 @@
 {
   "name": "tokenmate",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Play, watch and analyse chess against any AI model — in your terminal.",
   "type": "module",
   "bin": { "tokenmate": "./src/cli.ts" },
@@ -9,6 +9,7 @@
   "keywords": ["chess", "tui", "bun", "llm", "opentui", "stockfish", "models-dev", "cli"],
   "scripts": {
     "dev": "bun run src/cli.ts",
+    "doctor": "bun run src/cli.ts doctor",
     "build": "bun build src/cli.ts --target bun --outdir dist --minify",
     "test": "bun test",
     "lint": "tsc --noEmit",

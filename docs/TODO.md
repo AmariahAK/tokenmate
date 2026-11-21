@@ -40,51 +40,69 @@ derivation and centring proof all passed their gates in the prototype, and re-de
 
 ## Phase 3 — Engine + ladder
 
-- [ ] `src/engine/resolve.ts` — resolution order, commands with args, friendly OS-specific failure
-- [ ] `tokenmate doctor` — Bun, engine found + version, `UCI_Elo` range, cache warmth
-- [ ] `src/engine/uci.ts` — spawn, handshake, `MultiPV`, teardown with no orphan processes, capability probe
-- [ ] `src/engine/any-uci.ts` — adapt to whatever engine is present; depth/time handicap when `UCI_Elo` is absent
-- [ ] `src/engine/ladder.ts` — MultiPV sampling for 1–7, native `UCI_Elo` for 8–19, full for 20; levels 1–20 only,
+- [x] `src/engine/resolve.ts` — resolution order, commands with args, friendly OS-specific failure
+- [x] `tokenmate doctor` — Bun, engine found + version, `UCI_Elo` range, cache warmth
+- [x] `src/engine/uci.ts` — spawn, handshake, `MultiPV`, teardown with no orphan processes, capability probe
+- [x] `src/engine/any-uci.ts` — adapt to whatever engine is present; depth/time handicap when `UCI_Elo` is absent
+- [x] `src/engine/ladder.ts` — MultiPV sampling for 1–7, native `UCI_Elo` for 8–19, full for 20; levels 1–20 only,
       no named presets
-- [ ] `src/engine/analysis.ts` — eval, best line, blunder detection from the same search
-- [ ] warm-up + `isready`; `--depth` override
+- [x] `src/engine/analysis.ts` — eval, best line, blunder detection from the same search
+- [x] warm-up + `isready`; `--depth` override
 
 ## Phase 4 — Game core
 
-- [ ] `src/game/session.ts` — state machine, chess.js as the only legality gate
-- [ ] undo/redo, takeback, resign, draw offers
-- [ ] PGN import/export, FEN load/copy
-- [ ] `src/game/resume.ts` — save and restore an in-progress game
-- [ ] deterministic `--seed`
+- [x] `src/game/session.ts` — state machine, chess.js as the only legality gate
+- [x] undo/redo, takeback, resign, draw offers
+- [x] PGN import/export, FEN load/copy
+- [x] `src/game/resume.ts` — save and restore an in-progress game
+- [x] deterministic `--seed`
 
 ## Phase 5 — TUI
 
-- [ ] `src/app.ts` — big (96×37), medium (88), compact layouts
-- [ ] panels: eval bar, move list, analysis/thoughts, captured, clocks
-- [ ] keyboard + hjkl aliases, mouse click-to-move, `?` help overlay
-- [ ] setup screen: colour, level 1–20, clock, opponent
-- [ ] spectate two AIs; replay an imported game
-- [ ] graceful resize; truecolor + 256 + no-colour fallbacks
+- [x] layouts: big (96×37) / medium (88) / compact, chosen from the terminal size (`src/ui/layout.ts` +
+      `src/ui/screens.ts`; there is no separate `app.ts` — the composer and the loop in `src/cli/play.ts` cover it)
+- [x] panels: eval bar, move list, analysis/thoughts, captured, clocks
+- [x] keyboard + hjkl aliases, `?` help overlay
+- [ ] mouse click-to-move
+- [ ] setup screen wired into `play` (the frame exists in `screens.ts`; `--color`/`--level`/`--clock`/`--opponent`
+      are flags today, not a first-run screen)
+- [x] spectate two AIs locally (`--spectate`, `--model a/b,c/d`); replay an imported game
+- [ ] spectate over SSH (OpenTUI's SSH binding) — deferred with the OpenTUI integration below
+- [x] graceful resize; truecolor + 256 + no-colour fallbacks
+
+## Phase 5b — Terminal backend
+
+- [x] `src/terminal.ts` — raw mode, key normalisation, resize, colour negotiation, interface so the loop is testable
+- [ ] drive the frames through `@opentui/core` instead of writing ANSI directly. OpenTUI 0.9.7's renderer is a native
+      scene graph: hosting our finished frames means re-expressing the screens as renderables (or a custom Renderable
+      that blits styled cells), which is a bigger change than it looks and would replace the composer that has the
+      border and contrast gates. It is installed and in the dependency tree; the seam is `Terminal`.
+
 
 ## Phase 6 — Models
 
-- [ ] `src/models/catalog.ts` — models.dev, ETag conditional GET, hourly refresh, disk cache
-- [ ] `src/models/local.ts` — Ollama and LM Studio discovery
-- [ ] `src/models/brain.ts` — grounding, zod-validated `{move}`, retry once then engine fallback, opponent/coach modes
-- [ ] token budget, per-turn timeout, keys never logged
+- [x] `src/models/catalog.ts` — models.dev, ETag conditional GET, hourly refresh, disk cache
+- [x] `src/models/local.ts` — Ollama and LM Studio discovery (`/api/tags`, `/v1/models`; neither is in models.dev)
+- [x] `src/models/brain.ts` — grounding, zod-validated `{move}`, retry once then engine fallback, opponent/coach modes
+- [x] token budget, per-turn timeout, keys never logged (`src/models/config.ts`, 0600 enforced, `redact`)
 
 ## Phase 7 — Import
 
-- [ ] `src/import/chesscom.ts` — public archives, no auth
-- [ ] `src/import/lichess.ts` — with a descriptive User-Agent (required, see PLAN.md)
-- [ ] replay through the same renderer; PGN fallback; works with no engine
+- [x] `src/import/games.ts` — chess.com public archives, no auth, keeps the `accuracies` it already computes
+- [x] lichess with a descriptive `User-Agent` — without one the endpoint answers 404 (verified; there is a test)
+- [x] multi-game PGN split, local PGN fallback; parsing only, so it needs no engine
 
 ## Phase 8 — Release v0.1.0
 
-- [ ] README screenshots from the real app
-- [ ] `bunx tokenmate` smoke test on macOS + Linux; Windows/WSL documented honestly
+- [x] board image in the docs, generated by the renderer itself (`bun run board`)
+- [ ] screenshots of the real app in the README
+- [ ] `bunx tokenmate` smoke test on macOS + Linux; Windows/WSL documented honestly (only `bun run src/cli.ts` has been
+      run so far — `bunx` needs the package published first)
 - [ ] tag `v0.1.0`
 
 ## Open questions
 
-None yet. Anything that cannot be decided while building goes here as a TODO with the options spelled out.
+- **OpenTUI as the driver.** The owner chose OpenTUI; the app currently writes frames straight to the terminal because
+  the composer already produces a finished frame and OpenTUI's renderer is a scene graph. Options: (a) keep the plain
+  backend and use OpenTUI only for its SSH spectating binding later, (b) write a custom `Renderable` that blits our grid
+  into OpenTUI's buffer, (c) re-express every screen as OpenTUI renderables and delete the composer. Nothing is decided.
