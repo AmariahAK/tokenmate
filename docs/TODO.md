@@ -32,6 +32,8 @@ derivation and centring proof all passed their gates in the prototype, and re-de
 - [x] `src/ui/theme.ts` — five skins as data, palette derived, highlights hue-shifted at constant luminance
 - [x] `src/ui/grid.ts` — cell framebuffer, border drawing with clipping, `assertBorders`
 - [x] `src/ui/board.ts` — boxed 4×3 (32×24, shipping), wide 6×3 (48×24), compact 2×1 (16×8, ASCII letters)
+- [x] `src/ui/sprites.ts` — block-art piece sprites (4×3) using Unicode block elements; each piece has a unique
+      silhouette (king ╬╬, queen ▟██▙, rook █▀▀█, bishop ▄▀, knight ▄██▀, pawn ▄▄)
 - [x] `src/ui/layout.ts` — tier selection from terminal size, panels only when they fit
 - [x] `test/contrast.test.ts` — every square state ≥ 3:1 against both piece fills, plus a mutation theme that fails
 - [x] `test/layout.test.ts` — centring (38,345 audit + 4 padding = the 38,349 baseline, 0 failures), two mutation
@@ -65,6 +67,9 @@ derivation and centring proof all passed their gates in the prototype, and re-de
       `src/ui/screens.ts`; there is no separate `app.ts` — the composer and the loop in `src/cli/play.ts` cover it)
 - [x] panels: eval bar, move list, analysis/thoughts, captured, clocks
 - [x] keyboard + hjkl aliases, `?` help overlay
+- [x] cursor highlight (emerald green, blended at constant luminance like all accents)
+- [x] promotion picker — Q/R/B/N choice when a pawn reaches the 8th rank; no cancel (a pawn must promote)
+- [x] captured pieces displayed like chess.com/lichess — Unicode symbols, ordered by value, material advantage +N
 - [ ] the keys the help overlay used to advertise, now tracked here instead: `t` take back one ply, `ctrl+r` redo,
       `d` offer/accept a draw, `p` save, `c` coach commentary toggle, `tab` panel focus, `m` mouse mode.
       `session.ts` already supports redo, takeback(1), `offerDraw`/`acceptDraw` and `resume.save`, so this is key
@@ -73,6 +78,8 @@ derivation and centring proof all passed their gates in the prototype, and re-de
 - [x] setup screen wired in: bare `tokenmate` opens `src/cli/setup.ts` — Play / Level / Colour / Theme / Quit, with the
       20-level ladder and the Elo each level plays. `play --level N` skips it, so flags still script the game. Level,
       colour and theme only: `--clock` and `--opponent` are still flags, because neither is a first-run question.
+- [x] preferences remembered between sessions (`~/.tokenmate/prefs.json` — level, colour, theme)
+- [x] `--color random` resolved to a real coin flip (was silently defaulting to white)
 - [x] spectate two AIs locally (`--spectate`, `--model a/b,c/d`); replay an imported game
 - [ ] spectate over SSH (OpenTUI's SSH binding) — deferred with the OpenTUI integration below
 - [x] graceful resize; truecolor + 256 + no-colour fallbacks
