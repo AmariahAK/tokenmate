@@ -3,7 +3,7 @@ import { displayWidth } from "../src/ui/grid";
 import { themes } from "../src/ui/theme";
 import { toAnsi } from "../src/ui/ansi";
 import {
-  capturedPieces,
+  formatCaptured,
   clock,
   formatMoves,
   gameScreen,
@@ -116,11 +116,11 @@ describe("panel maths", () => {
   });
 
   test("captured pieces are what the FEN is missing", () => {
-    const c = capturedPieces("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    expect(c.w).toEqual([]);
-    expect(c.b).toEqual([]);
-    const after = capturedPieces("rnbqkbn1/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    expect(after.b).toEqual(["r"]);
+    const c = formatCaptured("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    expect(c.white).toBe("");
+    expect(c.black).toBe("");
+    const after = formatCaptured("rnbqkbn1/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    expect(after.black).toContain("♜"); // a black rook was captured
   });
 
   test("clocks format and never show negative time", () => {

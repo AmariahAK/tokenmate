@@ -1,65 +1,63 @@
-// Block-art chess piece sprites.
-// Each piece is a 4-column × 3-row grid of characters drawn with Unicode
-// block elements (█ ▀ ▄ ▐ ▌ ▘ ▝ ▖ ▗) that fill the square and give
-// recognisable silhouettes at the 4×3 tier.
+// Block-art chess piece sprites, 4 columns × 3 rows.
 //
-// The sprites are colour-neutral — they carry only shape. The renderer
-// paints every non-space cell in the piece's fg colour on the square's bg.
+// Using ▀ (upper half) and ▄ (lower half) as "pixels" gives 4×6 effective
+// resolution inside 4×3 character cells. Each character can show:
+//   ▀  = top half filled      ▄  = bottom half filled
+//   █  = both halves filled   ▐  = right half filled
+//   ▌  = left half filled       = empty (transparent)
 //
-// Design constraints:
-//   - exactly 4 columns, 3 rows (matches TIERS.boxed)
-//   - spaces are transparent (show the square colour)
-//   - no East-Asian-wide characters (each cell is 1 column)
-//   - each piece must be visually distinct from every other
+// The sprites are colour-neutral — the renderer paints non-space cells
+// in the piece's fg colour on the square's bg.
 
 export type Sprite = [string, string, string]; // 3 rows, each exactly 4 chars
 
 // ── Piece silhouettes ────────────────────────────────────────────────
-// The shapes are designed so every piece is recognisable at a glance:
-//   King   — wide flat crown with cross
-//   Queen  — three-pointed crown (corner dots)
-//   Rook   — two battlements with gap between
-//   Bishop — pointed top, narrow body
-//   Knight — asymmetric head jutting right
-//   Pawn   — small round head, narrow stem
+//
+// Each piece is designed to be instantly recognisable:
+//
+//   King   — cross on top, tapered body, wide base
+//   Queen  — crown with 3 points, tapered body, wide base
+//   Rook   — crenellations (3 merlons), solid tower, wide base
+//   Bishop — tall pointed hat (mitre), diagonal slash, medium base
+//   Knight — horse head profile facing right, thick neck
+//   Pawn   — round head, thin neck, flared base
 
 const KING: Sprite = [
-  "▐▀▀▌",  //  wide flat crown
-  " ▐▌ ",  //  narrow waist
+  " ╬╬ ",  //  cross / crown ornament
+  " ▐▌ ",  //  tapered body
   "▐██▌",  //  wide base
 ];
 
 const QUEEN: Sprite = [
-  "▘▀▀▝",  //  three points (corners + top)
-  " ▐▌ ",  //  narrow waist
+  "▟██▙",  //  solid crown with flared top
+  " ▐▌ ",  //  tapered body
   "▐██▌",  //  wide base
 ];
 
 const ROOK: Sprite = [
-  "█  █",  //  two battlements with gap
+  "█▀▀█",  //  crenellations — two merlons with open top
   "▐██▌",  //  solid tower
-  "████",  //  wide base
+  "████",  //  widest base
 ];
 
 const BISHOP: Sprite = [
-  " ▄▄ ",  //  pointed mitre
-  " ▐▌ ",  //  narrow body
-  " ██ ",  //  medium base
+  " ▄▀ ",  //  pointed mitre with slash
+  " ██ ",  //  solid body
+  "▐██▌",  //  wide base
 ];
 
 const KNIGHT: Sprite = [
-  " ▄█▌",  //  head jutting right
+  "▄██▀",  //  horse head profile
   " ██ ",  //  thick neck
   "▐██▌",  //  wide base
 ];
 
 const PAWN: Sprite = [
-  " ▐▌ ",  //  small round head
-  " ▐▌ ",  //  narrow stem
-  " ██ ",  //  medium base
+  " ▄▄ ",  //  round head
+  " ██ ",  //  body
+  "▐██▌",  //  flared base
 ];
 
-// Map from piece type letter to sprite
 export const SPRITES: Record<string, Sprite> = {
   k: KING,
   q: QUEEN,
@@ -69,7 +67,7 @@ export const SPRITES: Record<string, Sprite> = {
   p: PAWN,
 };
 
-// Validate at load time — every sprite must be exactly 3 rows of 4 chars
+// Validate at load time
 for (const [name, rows] of Object.entries(SPRITES)) {
   if (rows.length !== 3) throw new Error(`sprite ${name}: expected 3 rows, got ${rows.length}`);
   for (let i = 0; i < 3; i++) {

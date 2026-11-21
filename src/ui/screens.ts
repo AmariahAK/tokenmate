@@ -30,9 +30,14 @@ export type GameView = {
   notice?: string;
 };
 
+// Piece value for material count (standard values)
+const PIECE_VALUE: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+// Display order: queen first (most valuable), then rook, bishop, knight, pawn
+const CAPTURE_ORDER = ["q", "r", "b", "n", "p"];
+
 const START_COUNT: Record<string, number> = { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 };
 
-export function capturedPieces(fen: string) {
+function capturedPieces(fen: string) {
   const left: Record<string, number> = {};
   for (const rank of parseFen(fen)) for (const p of rank) if (p) left[`${p.c}${p.t}`] = (left[`${p.c}${p.t}`] ?? 0) + 1;
   const captured = { w: [] as string[], b: [] as string[] };
@@ -43,6 +48,38 @@ export function capturedPieces(fen: string) {
     }
   }
   return captured;
+}
+
+// Unicode piece symbols for captured display — small and compact
+const CAPTURE_SYMBOLS: Record<string, Record<string, string>> = {
+  w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
+  b: { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" },
+};
+
+/** Format captured pieces like chess.com: ♟♟♟♞♝ +3 */
+export function formatCaptured(fen: string): { white: string; black: string } {
+  const cap = capturedPieces(fen);
+  const fmt = (side: "w" | "b", pieces: string[]) => {
+    if (pieces.length === 0) return "";
+    // Group and order by value (high to low)
+    const ordered: string[] = [];
+    for (const t of CAPTURE_ORDER) {
+      const count = pieces.filter(p => p === t).length;
+      for (let i = 0; i < count; i++) ordered.push(CAPTURE_SYMBOLS[side]![t]!);
+    }
+    // Calculate material advantage
+    const myMaterial = pieces.reduce((s, p) => s + (PIECE_VALUE[p] ?? 0), 0);
+    const otherSide = side === "w" ? "b" : "w";
+    const otherCap = side === "w" ? cap.b : cap.w;
+    const otherMaterial = otherCap.reduce((s, p) => s + (PIECE_VALUE[p] ?? 0), 0);
+    const advantage = myMaterial - otherMaterial;
+    const suffix = advantage > 0 ? ` +${advantage}` : "";
+    return ordered.join("") + suffix;
+  };
+  return {
+    white: fmt("w", cap.w),  // white pieces that were captured (shown near black's side)
+    black: fmt("b", cap.b),  // black pieces that were captured (shown near white's side)
+  };
 }
 
 /** 1/(1+10^-cp/400): the standard logistic, so the bar agrees with chess intuition. */
@@ -187,8 +224,8 @@ export function gameScreen(v: GameView): Grid {
     const analysis = v.bestLine ? [`best: ${v.bestLine}`] : ["waiting for the engine"];
     panel(g, px, 16, pw, 5, "Analysis", analysis, v.theme);
 
-    const cap = capturedPieces(v.fen);
-    panel(g, px, 21, pw, 4, "Captured", [cap.b.join(" ") || "—", cap.w.join(" ") || "—"], v.theme);
+    const cap = formatCaptured(v.fen);
+    panel(g, px, 21, pw, 4, "Captured", [cap.white || "—", cap.black || "—"], v.theme);
 
     const clocks = v.clocks
       ? [`white ${clock(v.clocks.white)}   black ${clock(v.clocks.black)}`]

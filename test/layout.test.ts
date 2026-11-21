@@ -9,7 +9,7 @@ const MARKS = { lastMove: ["f8", "e7"] as [string, string], selected: "b5", chec
 const GLYPH_W = () => getPieceStyle() === "unicode" ? 2 : 1;
 const PIECE_RE = () => getPieceStyle() === "unicode" ? /[\u2654-\u265F]/ : /^[KQRBNPkqrbnp]$/;
 // Block elements used by sprites — any non-space cell with the piece's fg colour is part of the sprite
-const BLOCK_RE = /^[█▀▄▐▌▗▖▝▘]$/;
+const BLOCK_RE = /^[█▀▄▐▌▗▖▝▘╬▟▙]$/;
 const SIZES: [number, number][] = [
   [2, 1],
   [4, 3],
