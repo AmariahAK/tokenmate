@@ -66,8 +66,9 @@ derivation and centring proof all passed their gates in the prototype, and re-de
 - [x] panels: eval bar, move list, analysis/thoughts, captured, clocks
 - [x] keyboard + hjkl aliases, `?` help overlay
 - [ ] mouse click-to-move
-- [ ] setup screen wired into `play` (the frame exists in `screens.ts`; `--color`/`--level`/`--clock`/`--opponent`
-      are flags today, not a first-run screen)
+- [x] setup screen wired in: bare `tokenmate` opens `src/cli/setup.ts` — Play / Level / Colour / Theme / Quit, with the
+      20-level ladder and the Elo each level plays. `play --level N` skips it, so flags still script the game. Level,
+      colour and theme only: `--clock` and `--opponent` are still flags, because neither is a first-run question.
 - [x] spectate two AIs locally (`--spectate`, `--model a/b,c/d`); replay an imported game
 - [ ] spectate over SSH (OpenTUI's SSH binding) — deferred with the OpenTUI integration below
 - [x] graceful resize; truecolor + 256 + no-colour fallbacks

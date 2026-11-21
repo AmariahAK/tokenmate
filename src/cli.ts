@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { parseArgs, HELP_TEXT, type PlayOpts } from "./cli/args";
 import { doctorReport, type DoctorFacts } from "./cli/doctor";
 import { runGame, type EngineSeat, type Seat } from "./cli/play";
+import { runSetup } from "./cli/setup";
 import { Session } from "./game/session";
 import { lastGamePath, load as loadSave, save as saveGame } from "./game/resume";
 import { UciEngine } from "./engine/uci";
@@ -439,8 +440,19 @@ export async function main(argv: string[]): Promise<number> {
       return cmdReplay(parsed.command.file);
     case "resume":
       return cmdResume();
-    case "play":
-      return cmdPlay(parsed.command.opts);
+    case "play": {
+      // Bare `tokenmate` opens the level menu. Anything with flags stays a scriptable
+      // command, so `tokenmate play --level 12` never blocks on a screen.
+      const bare = argv.length === 0 || (argv.length === 1 && argv[0] === "play");
+      if (!bare) return cmdPlay(parsed.command.opts);
+      const chosen = await runSetup(new PlainTerminal(), {
+        level: parsed.command.opts.level,
+        color: parsed.command.opts.color,
+        theme: parsed.command.opts.theme ?? (themes[0]?.key ?? "slate"),
+      });
+      if (!chosen) return 0;
+      return cmdPlay({ ...parsed.command.opts, level: chosen.level, color: chosen.color, theme: chosen.theme });
+    }
     default:
       out(HELP_TEXT);
       return 0;

@@ -58,7 +58,7 @@ measure against.
 | `palette.ts` | hex ↔ channel mixing, luminance, and `atLum` (scale channels until a target luminance, preserving hue). |
 | `contrast.ts` | WCAG relative luminance ratio — the maths the theme gate asserts with, built on `palette.ts` so there is one luminance implementation. |
 | `layout.ts` | tier selection from terminal size, and whether the side panels fit. |
-| `screens.ts` | whole-frame composition for each screen (game, setup, review, help). Phase 5, not yet written. |
+| `screens.ts` | whole-frame composition for each screen (game, help, setup). The setup frame takes a `SetupChoice[]` and follows the selection with a scrolling window, because the 20-level ladder never fits a short terminal. |
 
 `@opentui/core` 0.9.7 has **no JSX runtime** — JSX lives in the separate `@opentui/react` and `@opentui/solid` packages.
 tokenmate does not take either dependency: the app is imperative renderables, and a composed `Grid` is handed to the

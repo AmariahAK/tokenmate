@@ -129,7 +129,8 @@ per-skin piece-style editor.
       is handed over as an ANSI text span rather than re-implemented as nested boxes
 - [ ] panels: eval bar, move list, analysis/thoughts, captured, clocks
 - [ ] keyboard (cursor, select, undo, hint, resign, tab-focus) **+ hjkl aliases**, mouse click-to-move, `?` help overlay
-- [ ] setup: colour, level 1–20, clock, opponent (engine or model)
+- [x] setup: colour, level 1–20 with the Elo each plays, theme, quit (`src/cli/setup.ts`). Bare `tokenmate` opens it;
+      `play --level N` skips it. Clock and opponent stay flags — not first-run questions.
 - [ ] spectate: two AIs local; SSH via OpenTUI binding; replay an imported game
 - [ ] graceful resize; truecolor + 256 + no-colour fallbacks
 

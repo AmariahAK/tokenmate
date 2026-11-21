@@ -255,23 +255,40 @@ export function helpScreen(cols: number, rows: number, theme: Theme): Grid {
   return g;
 }
 
-export type SetupChoice = { label: string; value: string; note?: string };
+export type SetupChoice = { label: string; note?: string };
 
 export function setupScreen(
   o: { cols: number; rows: number; theme: Theme; title: string; options: SetupChoice[]; selected: number; help?: string },
 ): Grid {
   const g = new Grid(o.cols, o.rows);
-  const w = Math.min(72, o.cols - 2);
-  const h = Math.min(o.options.length + 5, o.rows - 2);
+  const w = Math.min(72, Math.max(12, o.cols - 2));
+  const h = Math.min(o.options.length + 5, Math.max(7, o.rows - 2));
   const x = Math.max(0, Math.floor((o.cols - w) / 2));
   const y = Math.max(0, Math.floor((o.rows - h) / 2));
   g.box(x, y, w, h, o.title, { fg: o.theme.coord });
-  o.options.slice(0, h - 3).forEach((opt, i) => {
-    const on = i === o.selected;
+
+  // The ladder is 20 rows and a 24-row terminal has room for far fewer, so the
+  // window follows the selection. A list that simply truncated would hide level 20
+  // exactly when someone is scrolling towards it.
+  const contentRows = Math.max(1, h - 3);
+  const overflows = o.options.length > contentRows;
+  const visible = overflows ? Math.max(1, contentRows - 1) : contentRows;
+  const first = Math.max(0, Math.min(o.selected - visible + 1, o.options.length - visible));
+
+  o.options.slice(first, first + visible).forEach((opt, i) => {
+    const on = first + i === o.selected;
     g.text(x + 2, y + 1 + i, `${on ? "▸" : " "} ${opt.label}`, { fg: on ? "#FFFFFF" : "#C9D1D9", bold: on }, w - 4);
-    if (opt.note) g.text(x + Math.floor(w / 2), y + 1 + i, opt.note, { fg: o.theme.coord }, Math.floor(w / 2) - 1);
+    if (opt.note) g.text(x + Math.floor(w / 2), y + 1 + i, opt.note, { fg: o.theme.coord }, Math.floor(w / 2) - 2);
   });
-  g.text(x + 2, y + h - 2, o.help ?? "↑↓ choose · enter select · esc back", { fg: o.theme.coord }, w - 4);
+
+  if (overflows) {
+    const above = first > 0;
+    const below = first + visible < o.options.length;
+    const mark = `${above ? "↑" : " "}${below ? "↓" : " "}`.trim();
+    if (mark) g.text(x + w - 3, y + h - 2, mark, { fg: o.theme.coord }, 1);
+  }
+
+  g.text(x + 2, y + h - 2, o.help ?? "↑↓ choose · enter select · esc back", { fg: o.theme.coord }, w - 6);
   g.assertBorders("setup screen");
   return g;
 }

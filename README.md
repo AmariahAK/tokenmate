@@ -65,14 +65,19 @@ positions all work without one. Only playing and live analysis need an engine.
 ## Play
 
 ```bash
-tokenmate                                  # level 8 against the engine
-tokenmate --level 12                       # the Elo each level plays is printed with it
+tokenmate                                  # opens the menu: level, colour, theme
+tokenmate play                             # the same menu, spelled out
+tokenmate play --level 12                  # any flag skips the menu: goes straight to the board
 tokenmate --engine "gnuchess --uci"        # any UCI engine, with arguments
 tokenmate --model ollama/qwen3             # a local model takes the seat
 tokenmate --spectate --model ollama/qwen3,lmstudio/qwen2.5   # watch two models play
 tokenmate replay game.pgn                  # watch a game back, no engine needed
 tokenmate doctor                           # what was found: engine, models, cache
 ```
+
+Bare `tokenmate` asks the two questions a first run cannot guess — how strong and which colour — as a list of levels
+with the Elo each one plays, so you never need `--help` to start. Levels with `sampled` beside them are weak by
+sampling among the engine's own candidates; `native` levels use the engine's own `UCI_Elo`.
 
 Controls: arrows or `hjkl` to move, `space` to select and move, `esc` to cancel, `u` to take back, `h` for a hint,
 `s` to change skin, `?` for help, `q` to quit.

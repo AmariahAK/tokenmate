@@ -15,44 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removing checkmate detection breaks 1, both green again on restore.
 - Built-in strength is reported as an **estimate** (depth 6 ≈ 1550 Elo), and a level that asks for more than the
   built-in can play says so and names the fix instead of printing an Elo it cannot reach.
-
-### Changed
-
-- `startEngine` falls back to the built-in when nothing is on `PATH`, but a **named** engine (`--engine`, or
-  `$TOKENMATE_ENGINE`) that fails to start is still an error — no silent substitution.
-- `tokenmate doctor` leads with the built-in as always available and reports Stockfish as optional. The old
-  "missing — no UCI engine found" wording is gone, along with the test that asserted it.
-- Measured search cost, which sets the cap: depth 6 in 0.9–1.9 s middlegame, depth 7 needs 6–8 s.
-
-### Fixed
-
-- A pty that reports `columns: 0` collapsed the entire screen to a one-column "terminal too small" message: the fallback
-  used `?? 80`, which only catches `undefined`, so a `0` went straight through. Found by running the app under a pty
-  rather than by any unit test, which is why there is now one with `0` in it.
-- En passant was reported as a **quiet move**: chess.js 1.4.0 returns `false` from `isCapture()` for it while still
-  reporting the taken pawn, so the legal-move list a model reads had the capture flag wrong. Caught by a test that
-  asserted the flag, not by review.
-- The footer notice was clipped at the window width, and a model-fallback notice was ~105 cells in a 96-cell window —
-  so the part that got cut was the outcome ("the engine moved instead"). Notices now lead with the outcome and the
-  reason goes to the Thoughts panel, which has room for it.
-- `?` did not open help on terminals that report it as `/` plus shift rather than a bare `?`. Both shapes now normalise
-  to the same key.
-- The licence gate could not see **LGPL**: the pattern only matched `GPL`/`AGPL`, so `LGPL-2.1-or-later` inside a
-  compound `MIT AND LGPL-2.1-or-later` string passed silently. It now matches `GPL`, `AGPL` and `LGPL`, and
-  `--strict` ignores the allowlist so the difference between "no copyleft" and "one examined exception" is visible.
-- The model's ASCII board used one glyph for both colours, so `♞` could not say *whose* knight sat on c4 — which is the
-  entire point of grounding. It now uses upper case for white and lower case for black, the convention every model has
-  already seen.
-
-### Security
-
-- One copyleft dependency is examined and allowed: `@opentui/core-*` statically links a decode-only FFmpeg 9.0.2 built
-  with GPL and non-free parts disabled. It is installed from npm rather than redistributed, and the dylib is never
-  baked into our build output. Reasoning in
-  [ARCHITECTURE.md](ARCHITECTURE.md#5-licence--scriptscheck-licencests).
-
-### Added
-
+- **A setup menu**, so a first run does not require reading `--help`: bare `tokenmate` opens Play / Level / Colour /
+  Theme / Quit, and the Level list is the real 20-level ladder with the Elo each one plays and how it gets there
+  (`sampled`, `native`, `full`). The list follows the selection, because 20 levels never fit a 24-row terminal and a
+  truncating window would hide level 20 exactly when someone scrolls towards it.
+- `tokenmate play --level N` still starts straight into the board with no screen, so scripts and the tests keep working.
 - Repo scaffold: MIT licence, `package.json` with `bunx` entry and the `dev`/`build`/`test`/`lint`/`check:*` scripts,
   strict `tsconfig.json`, `.editorconfig`, `.gitignore` that keeps engine binaries and `*.wasm` out of the tree.
 - `scripts/check-licences.ts` — walks the dependency tree and fails the build on any copyleft licence, so a GPL package
@@ -81,6 +48,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reach the top levels, the catalogue age, which local models are running, cache warmth and the saved game.
 - `src/models/chat.ts` — OpenAI-compatible transport with a token cap and a per-turn timeout, local providers needing no
   key, and an explicit refusal (by name) for providers whose API is not OpenAI-shaped.
+
+### Changed
+
+- `startEngine` falls back to the built-in when nothing is on `PATH`, but a **named** engine (`--engine`, or
+  `$TOKENMATE_ENGINE`) that fails to start is still an error — no silent substitution.
+- `tokenmate doctor` leads with the built-in as always available and reports Stockfish as optional. The old
+  "missing — no UCI engine found" wording is gone, along with the test that asserted it.
+- `tokenmate play` with no options opens the menu too; any option skips it. The help text said "skip the menu" for a
+  bare `play`, which was not what the code did.
+- Measured search cost, which sets the cap: depth 6 in 0.9–1.9 s middlegame, depth 7 needs 6–8 s.
+
+### Fixed
+
+- A pty that reports `columns: 0` collapsed the entire screen to a one-column "terminal too small" message: the fallback
+  used `?? 80`, which only catches `undefined`, so a `0` went straight through. Found by running the app under a pty
+  rather than by any unit test, which is why there is now one with `0` in it.
+- En passant was reported as a **quiet move**: chess.js 1.4.0 returns `false` from `isCapture()` for it while still
+  reporting the taken pawn, so the legal-move list a model reads had the capture flag wrong. Caught by a test that
+  asserted the flag, not by review.
+- The footer notice was clipped at the window width, and a model-fallback notice was ~105 cells in a 96-cell window —
+  so the part that got cut was the outcome ("the engine moved instead"). Notices now lead with the outcome and the
+  reason goes to the Thoughts panel, which has room for it.
+- `?` did not open help on terminals that report it as `/` plus shift rather than a bare `?`. Both shapes now normalise
+  to the same key.
+- The licence gate could not see **LGPL**: the pattern only matched `GPL`/`AGPL`, so `LGPL-2.1-or-later` inside a
+  compound `MIT AND LGPL-2.1-or-later` string passed silently. It now matches `GPL`, `AGPL` and `LGPL`, and
+  `--strict` ignores the allowlist so the difference between "no copyleft" and "one examined exception" is visible.
+- The model's ASCII board used one glyph for both colours, so `♞` could not say *whose* knight sat on c4 — which is the
+  entire point of grounding. It now uses upper case for white and lower case for black, the convention every model has
+  already seen.
+
+### Security
+
+- One copyleft dependency is examined and allowed: `@opentui/core-*` statically links a decode-only FFmpeg 9.0.2 built
+  with GPL and non-free parts disabled. It is installed from npm rather than redistributed, and the dylib is never
+  baked into our build output. Reasoning in
+  [ARCHITECTURE.md](ARCHITECTURE.md#5-licence--scriptscheck-licencests).
 
 ## [0.1.0] — unreleased
 

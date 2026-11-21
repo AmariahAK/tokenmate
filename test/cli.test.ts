@@ -8,6 +8,9 @@ import type { ColorMode } from "../src/ui/ansi";
 import type { Settings } from "../src/engine/any-uci";
 import { makeChat, splitRef, ChatConfigError } from "../src/models/chat";
 import { createBuiltin } from "../src/builtin/index";
+import { setupScreen } from "../src/ui/screens";
+import { displayWidth } from "../src/ui/grid";
+import { runSetup } from "../src/cli/setup";
 
 /**
  * A terminal that records frames and lets the test press keys. This is the only
@@ -222,6 +225,94 @@ describe("the game loop", () => {
     await terminal.press(char("?"));
     expect(terminal.last).toContain("tokenmate · level");
     await terminal.press(char("q"));
+    await playing;
+  });
+});
+
+describe("setup menu: choose a level without reading --help", () => {
+  const levelOptions = (n = 20) =>
+    Array.from({ length: n }, (_, i) => ({ label: `Level ${i + 1}`, note: `${300 + i * 100} Elo` }));
+
+  test("every line is exactly the window width and the borders hold", () => {
+    for (const [cols, h] of [
+      [96, 37],
+      [80, 24],
+      [40, 12],
+      [20, 8],
+    ] as [number, number][]) {
+      const grid = setupScreen({ cols, rows: h, theme: themes[0]!, title: "Level", options: levelOptions(), selected: 7 });
+      for (const line of grid.toText().split("\n")) expect(displayWidth(line)).toBe(cols);
+    }
+  });
+
+  test("the list follows the selection, so level 20 is reachable on a short terminal", () => {
+    const text = setupScreen({ cols: 80, rows: 24, theme: themes[0]!, title: "Level", options: levelOptions(), selected: 19 }).toText();
+    expect(text).toContain("Level 20");
+    // and it scrolled rather than truncating: level 1 is off-screen by then
+    expect(text).not.toMatch(/\bLevel 1\b/);
+  });
+
+  test("the menu returns the level that was chosen, not the default", async () => {
+    const terminal = new FakeTerminal();
+    const running = runSetup(terminal, { level: 1, color: "white", theme: "slate" });
+    await Bun.sleep(0);
+    await terminal.press(down); // Play -> Level
+    await terminal.press({ type: "special", name: "enter", shift: false });
+    await terminal.press(down); // level 1 -> level 2
+    await terminal.press({ type: "special", name: "enter", shift: false }); // back to the menu
+    await terminal.press(up); // Level -> Play
+    await terminal.press({ type: "special", name: "enter", shift: false });
+    const chosen = await running;
+    expect(chosen?.level).toBe(2);
+  });
+
+  test("the menu shows each level with the Elo it plays", async () => {
+    const terminal = new FakeTerminal();
+    const running = runSetup(terminal, { level: 8, color: "white", theme: "slate" });
+    await Bun.sleep(0);
+    await terminal.press(down);
+    await terminal.press({ type: "special", name: "enter", shift: false });
+    // The level list is a real ladder: 300 Elo at level 1, and native levels above
+    expect(terminal.last).toContain("Level 1");
+    expect(terminal.last).toContain("300 Elo");
+    await terminal.press(char("q"));
+    expect(await running).toBeNull();
+  });
+
+  test("quitting the menu starts no game", async () => {
+    const terminal = new FakeTerminal();
+    const running = runSetup(terminal, { level: 8, color: "white", theme: "slate" });
+    await Bun.sleep(0);
+    await terminal.press(char("q"));
+    expect(await running).toBeNull();
+  });
+
+  test("a level chosen in the menu is the level the game actually plays", async () => {
+    const terminal = new FakeTerminal();
+    const running = runSetup(terminal, { level: 1, color: "white", theme: "slate" });
+    await Bun.sleep(0);
+    await terminal.press(down);
+    await terminal.press({ type: "special", name: "enter", shift: false });
+    await terminal.press(down);
+    await terminal.press({ type: "special", name: "enter", shift: false });
+    await terminal.press(up);
+    await terminal.press({ type: "special", name: "enter", shift: false });
+    const chosen = await running;
+    expect(chosen?.level).toBe(2);
+
+    const seat = createBuiltin(chosen!.level);
+    const { opts, terminal: game } = base({
+      seatOf: { white: { kind: "human" }, black: { kind: "engine" } },
+      labelOf: { white: "you", black: `built-in · level ${chosen!.level}` },
+      engine: seat,
+      level: chosen!.level,
+      levelElo: seat.settings.elo ?? 0,
+    });
+    const playing = runGame(opts);
+    await Bun.sleep(0);
+    expect(game.last).toContain("level 2");
+    expect(game.last).toContain("(450 elo)");
+    await game.press(char("q"));
     await playing;
   });
 });

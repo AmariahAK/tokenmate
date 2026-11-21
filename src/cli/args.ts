@@ -33,8 +33,8 @@ export const LEVELS = { min: 1, max: 20 } as const;
 export const HELP_TEXT = `tokenmate — play, watch and analyse chess in your terminal
 
 usage
-  tokenmate                       play the engine (level 8 by default)
-  tokenmate play [options]        same, explicitly
+  tokenmate                       choose a level, colour and theme, then play
+  tokenmate play [options]        any option skips the menu and plays straight away
   tokenmate doctor                what tokenmate found: bun, engine, models, cache
   tokenmate import <source> <user> [--limit n]
   tokenmate replay <file.pgn>
