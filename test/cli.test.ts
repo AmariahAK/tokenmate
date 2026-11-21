@@ -620,3 +620,123 @@ describe("doctor", () => {
     expect(text).toMatch(/sk-\u2026[a-z]{2}/);
   });
 });
+
+describe("promotion picker", () => {
+  // FEN with a white pawn on e7 ready to promote
+  const PROMO_FEN = "8/4P1k1/8/8/8/8/8/4K3 w - - 0 1";
+
+  test("moving a pawn to the last rank opens the promotion picker instead of auto-queening", async () => {
+    const session = Session.newGame({ fen: PROMO_FEN });
+    const terminal = new FakeTerminal();
+    const playing = runGame({
+      session,
+      terminal,
+      theme: themes[0]!,
+      seatOf: { white: { kind: "human" }, black: { kind: "human" } },
+      labelOf: { white: "you", black: "you" },
+      engine: null,
+      level: 1,
+      levelElo: 300,
+      depth: null,
+    });
+    await Bun.sleep(0);
+
+    // Navigate to e7 (the pawn) — cursor starts at e4, so go up 3
+    await terminal.press({ type: "special", name: "up", shift: false });
+    await terminal.press({ type: "special", name: "up", shift: false });
+    await terminal.press({ type: "special", name: "up", shift: false });
+    await terminal.press(select); // select e7
+
+    // Navigate to e8 (promotion square)
+    await terminal.press({ type: "special", name: "up", shift: false });
+    await terminal.press(select); // try to move to e8
+
+    // The promotion picker should be open — the notice should show the choices
+    expect(terminal.last).toContain("Queen");
+    expect(terminal.last).toContain("Rook");
+    expect(terminal.last).toContain("Bishop");
+    expect(terminal.last).toContain("Knight");
+
+    // The pawn should NOT have moved yet
+    expect(session.status().fen).toContain("4P1"); // pawn still on 7th rank
+
+    // Press right to select Rook, then confirm
+    await terminal.press({ type: "special", name: "right", shift: false });
+    await terminal.press(select);
+
+    // Now the pawn should have promoted to a rook
+    expect(session.status().fen).toContain("4R"); // rook on 8th rank
+    expect(session.status().fen).not.toContain("4P1"); // pawn gone
+
+    await terminal.press(char("q")); // quit
+    await playing;
+  });
+
+  test("typing a piece letter directly promotes without arrows", async () => {
+    const session = Session.newGame({ fen: PROMO_FEN });
+    const terminal = new FakeTerminal();
+    const playing = runGame({
+      session,
+      terminal,
+      theme: themes[0]!,
+      seatOf: { white: { kind: "human" }, black: { kind: "human" } },
+      labelOf: { white: "you", black: "you" },
+      engine: null,
+      level: 1,
+      levelElo: 300,
+      depth: null,
+    });
+    await Bun.sleep(0);
+
+    // Navigate to e7, select, navigate to e8, select
+    for (let i = 0; i < 3; i++) await terminal.press({ type: "special", name: "up", shift: false });
+    await terminal.press(select);
+    await terminal.press({ type: "special", name: "up", shift: false });
+    await terminal.press(select);
+
+    // Picker is open — type 'n' for knight
+    await terminal.press(char("n"));
+
+    // Should have promoted to a knight
+    expect(session.status().fen).toContain("4N"); // knight on 8th rank
+
+    await terminal.press(char("q"));
+    await playing;
+  });
+
+  test("esc cancels the promotion picker", async () => {
+    const session = Session.newGame({ fen: PROMO_FEN });
+    const terminal = new FakeTerminal();
+    const playing = runGame({
+      session,
+      terminal,
+      theme: themes[0]!,
+      seatOf: { white: { kind: "human" }, black: { kind: "human" } },
+      labelOf: { white: "you", black: "you" },
+      engine: null,
+      level: 1,
+      levelElo: 300,
+      depth: null,
+    });
+    await Bun.sleep(0);
+
+    for (let i = 0; i < 3; i++) await terminal.press({ type: "special", name: "up", shift: false });
+    await terminal.press(select);
+    await terminal.press({ type: "special", name: "up", shift: false });
+    await terminal.press(select);
+
+    // Picker is open
+    expect(terminal.last).toContain("Queen");
+
+    // Press escape to cancel
+    await terminal.press({ type: "special", name: "escape", shift: false });
+
+    // Pawn should still be on e7
+    expect(session.status().fen).toContain("4P1");
+    // Picker should be gone
+    expect(terminal.last).not.toContain("promote:");
+
+    await terminal.press(char("q"));
+    await playing;
+  });
+});

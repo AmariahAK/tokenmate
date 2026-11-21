@@ -33,6 +33,8 @@ export type GameOptions = {
 
 const emptyAnalysis = (): Analysis => ({ verdict: "unrated", loss: null, eval: { type: "cp", value: 0 }, best: null, played: null, pv: [] });
 
+const PROMO_NAMES: Record<string, string> = { q: "♛ Queen", r: "♜ Rook", b: "♝ Bishop", n: "♞ Knight" };
+
 const sideName = (c: "w" | "b") => (c === "w" ? "white" : "black");
 
 /**
@@ -44,6 +46,8 @@ export async function runGame(opts: GameOptions): Promise<void> {
   const { session, terminal } = opts;
   let cursor = { file: 4, rank: 3 }; // e4
   let selected: string | null = null;
+  let promoting: { from: string; to: string; choices: string[] } | null = null;
+  let promoIndex = 0; // which promotion piece is highlighted
   let help = false;
   let notice: string | null = null;
   let thoughts: string | null = null;
@@ -89,7 +93,11 @@ export async function runGame(opts: GameOptions): Promise<void> {
       opponent: `${opts.labelOf.white} vs ${opts.labelOf.black}`,
       engine: opts.engine?.settings.note ?? null,
       clocks: clk ? { white: clk.whiteMs, black: clk.blackMs } : null,
-      ...(notice ? { notice } : {}),
+      ...(promoting ? {
+        notice: `promote: ${promoting.choices.map((p, i) =>
+          i === promoIndex ? `[${PROMO_NAMES[p]}]` : ` ${PROMO_NAMES[p]} `
+        ).join("  ")}  ←→ choose · enter confirm · esc cancel`,
+      } : notice ? { notice } : {}),
     };
     terminal.draw(toAnsi(gameScreen(view), terminal.colorMode));
   };
@@ -168,15 +176,27 @@ export async function runGame(opts: GameOptions): Promise<void> {
     }
   };
 
-  const tryMove = (from: string, to: string): void => {
+  const tryMove = (from: string, to: string, promotion?: string): void => {
     const options = session.legalMoves().filter((m) => m.from === from && m.to === to);
     if (!options.length) {
       notice = `${from}-${to} is not legal here`;
       return;
     }
-    // A pawn reaching the last rank has four legal moves; queen is the default a
-    // bare keypress can express.
-    const chosen = options.find((m) => (m.promotion ?? "q") === "q") ?? options[0]!;
+    // A pawn reaching the last rank has four legal moves (q/r/b/n).
+    // If this is a promotion and no piece was chosen yet, open the picker.
+    const isPromotion = options.some((m) => m.promotion !== undefined);
+    if (isPromotion && !promotion) {
+      promoting = {
+        from,
+        to,
+        choices: ["q", "r", "b", "n"],
+      };
+      promoIndex = 0; // default to queen
+      return;
+    }
+    const chosen = promotion
+      ? options.find((m) => m.promotion === promotion) ?? options[0]!
+      : options[0]!;
     const applied = session.move({ from: chosen.from, to: chosen.to, ...(chosen.promotion ? { promotion: chosen.promotion } : {}) });
     if (applied.ok) {
       notice = null;
@@ -193,7 +213,7 @@ export async function runGame(opts: GameOptions): Promise<void> {
   const isHint = (key: Key) => key.type === "char" && (key.ch === "H" || (key.ch === "h" && key.shift));
 
   const handle = async (key: Key): Promise<void> => {
-    if (key.type === "char" && key.ch === "q" && !key.ctrl) return quit();
+    if (key.type === "char" && key.ch === "q" && !key.ctrl && !promoting) return quit();
     if (help) {
       help = false;
       return render();
@@ -202,6 +222,45 @@ export async function runGame(opts: GameOptions): Promise<void> {
       help = true;
       return render();
     }
+
+    // ── Promotion picker ──────────────────────────────────────────────
+    if (promoting) {
+      if (key.type === "special" && key.name === "escape") {
+        promoting = null;
+        return render();
+      }
+      const delta = key.type === "special" ? ARROWS[key.name] : key.type === "char" && !key.shift ? ARROWS[key.ch] : undefined;
+      if (delta) {
+        // left/right (or h/l) to cycle through Q R B N
+        const d = delta[0] || delta[1];
+        promoIndex = (promoIndex + d + promoting.choices.length) % promoting.choices.length;
+        return render();
+      }
+      const isConfirm =
+        (key.type === "special" && (key.name === "space" || key.name === "enter")) || (key.type === "char" && key.ch === " ");
+      if (isConfirm) {
+        const piece = promoting.choices[promoIndex]!;
+        const { from, to } = promoting;
+        promoting = null;
+        tryMove(from, to, piece);
+        selected = null;
+        render();
+        return maybeAiMove();
+      }
+      // Also allow typing the piece letter directly: q, r, b, n
+      if (key.type === "char" && "qrbn".includes(key.ch.toLowerCase())) {
+        const piece = key.ch.toLowerCase();
+        const { from, to } = promoting;
+        promoting = null;
+        tryMove(from, to, piece);
+        selected = null;
+        render();
+        return maybeAiMove();
+      }
+      return render();
+    }
+
+    // ── Normal play ───────────────────────────────────────────────────
     if (key.type === "special" && key.name === "escape") {
       selected = null;
       return render();
@@ -220,6 +279,8 @@ export async function runGame(opts: GameOptions): Promise<void> {
         return render();
       }
       if (selected !== here) tryMove(selected, here);
+      // If tryMove opened the promotion picker, don't clear selected yet
+      if (promoting) return render();
       selected = null;
       render();
       return maybeAiMove();
