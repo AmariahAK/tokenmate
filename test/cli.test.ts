@@ -704,7 +704,7 @@ describe("promotion picker", () => {
     await playing;
   });
 
-  test("esc cancels the promotion picker", async () => {
+  test("esc does not cancel — a pawn must promote", async () => {
     const session = Session.newGame({ fen: PROMO_FEN });
     const terminal = new FakeTerminal();
     const playing = runGame({
@@ -728,15 +728,19 @@ describe("promotion picker", () => {
     // Picker is open
     expect(terminal.last).toContain("Queen");
 
-    // Press escape to cancel
+    // Press escape — should be ignored, picker stays open
     await terminal.press({ type: "special", name: "escape", shift: false });
 
-    // Pawn should still be on e7
-    expect(session.status().fen).toContain("4P1");
-    // Picker should be gone
-    expect(terminal.last).not.toContain("promote:");
+    // Picker is still open
+    expect(terminal.last).toContain("Queen");
+    expect(terminal.last).toContain("promote:");
 
+    // Pawn still on e7
+    expect(session.status().fen).toContain("4P1");
+
+    // Now actually promote to finish the test
     await terminal.press(char("q"));
+    await terminal.press(char("q")); // quit
     await playing;
   });
 });

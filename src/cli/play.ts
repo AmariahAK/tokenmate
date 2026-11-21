@@ -96,7 +96,7 @@ export async function runGame(opts: GameOptions): Promise<void> {
       ...(promoting ? {
         notice: `promote: ${promoting.choices.map((p, i) =>
           i === promoIndex ? `[${PROMO_NAMES[p]}]` : ` ${PROMO_NAMES[p]} `
-        ).join("  ")}  ←→ choose · enter confirm · esc cancel`,
+        ).join("  ")}  ←→ choose · enter confirm`,
       } : notice ? { notice } : {}),
     };
     terminal.draw(toAnsi(gameScreen(view), terminal.colorMode));
@@ -224,11 +224,9 @@ export async function runGame(opts: GameOptions): Promise<void> {
     }
 
     // ── Promotion picker ──────────────────────────────────────────────
+    // In chess a pawn that reaches the last rank MUST promote — there is
+    // no cancelling. Only piece selection and confirmation keys are accepted.
     if (promoting) {
-      if (key.type === "special" && key.name === "escape") {
-        promoting = null;
-        return render();
-      }
       const delta = key.type === "special" ? ARROWS[key.name] : key.type === "char" && !key.shift ? ARROWS[key.ch] : undefined;
       if (delta) {
         // left/right (or h/l) to cycle through Q R B N
