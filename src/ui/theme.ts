@@ -1,6 +1,6 @@
 import { atLum, lum, mix } from "./palette";
 
-export type State = "none" | "last" | "selected" | "check";
+export type State = "none" | "last" | "selected" | "check" | "cursor";
 
 export type Theme = {
   key: string;
@@ -24,14 +24,16 @@ export const square = (t: Theme, isLight: boolean, state: State = "none") => {
   return state === "none" ? base : atLum(mix(base, t.accents[state], t.blend), lum(base));
 };
 
-export const STATES: State[] = ["none", "last", "selected", "check"];
+export const STATES: State[] = ["none", "last", "selected", "check", "cursor"];
 
 const AMBER = "#E0A93B";
 const BLUE = "#4A9EFF";
 const RED = "#E05252";
 
+const CURSOR = "#50C878"; // emerald green — distinct from all other accents
+
 const mk = (
-  o: { light: string; dark: string; whiteBody: string; blackBody: string; accents: Theme["accents"]; blend: number },
+  o: { light: string; dark: string; whiteBody: string; blackBody: string; accents: Omit<Theme["accents"], "cursor"> & { cursor?: string }; blend: number },
   key: string,
   name: string,
   note: string,
@@ -43,7 +45,7 @@ const mk = (
   dark: o.dark,
   whitePiece: o.whiteBody,
   blackPiece: o.blackBody,
-  accents: o.accents,
+  accents: { ...o.accents, cursor: o.accents.cursor ?? CURSOR },
   blend: o.blend,
   hint: mix(o.dark, "#000000", 0.3),
   coord: "#8b949e",

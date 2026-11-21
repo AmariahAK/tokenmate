@@ -65,12 +65,14 @@ export async function runGame(opts: GameOptions): Promise<void> {
     }
     const clk = session.clock();
     const last = st.history.at(-1);
+    const cursorSq = squareName(cursor.file, cursor.rank);
     const view: GameView = {
       cols,
       rows,
       theme,
       fen: st.fen,
       marks: {
+        cursor: cursorSq,
         ...(selected ? { selected } : {}),
         ...(last ? { lastMove: [last.from, last.to] as [string, string] } : {}),
       },

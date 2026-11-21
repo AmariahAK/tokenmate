@@ -28,7 +28,7 @@ export const GLYPHS = new Proxy({} as Record<"w" | "b", Record<string, string>>,
   },
 });
 
-export type Marks = { lastMove?: [string, string]; selected?: string; check?: string };
+export type Marks = { lastMove?: [string, string]; selected?: string; check?: string; cursor?: string };
 
 export type BoardOpts = Marks & {
   hints?: string[];
@@ -60,7 +60,7 @@ const FILES = "abcdefgh";
 export const sqName = (f: number, r: number) => `${FILES[f] ?? "?"}${8 - r}`;
 
 export const stateOf = (o: Marks, name: string): State =>
-  o.check === name ? "check" : o.selected === name ? "selected" : o.lastMove?.includes(name) ? "last" : "none";
+  o.check === name ? "check" : o.selected === name ? "selected" : o.cursor === name ? "cursor" : o.lastMove?.includes(name) ? "last" : "none";
 
 // The tier is chosen from the terminal so a small window shrinks the board
 // instead of refusing to run. 4×3 ships; see docs/ARCHITECTURE.md for why.

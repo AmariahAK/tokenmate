@@ -6,6 +6,7 @@ import { runGame, type EngineSeat, type Seat } from "./cli/play";
 import { runSetup } from "./cli/setup";
 import { Session } from "./game/session";
 import { lastGamePath, load as loadSave, save as saveGame } from "./game/resume";
+import { loadPrefs, savePrefs } from "./game/prefs";
 import { UciEngine } from "./engine/uci";
 import type { Candidate } from "./engine/uci";
 import { installHint, resolveEngine } from "./engine/resolve";
@@ -331,6 +332,9 @@ async function buildSeats(o: PlayOpts, engineSeat: EngineSeat | null, engineName
 }
 
 async function cmdPlay(o: PlayOpts): Promise<number> {
+  // Resolve "random" to an actual side before anything reads it.
+  if (o.color === "random") o = { ...o, color: Math.random() < 0.5 ? "white" : "black" };
+
   const theme = (o.theme ? themeByKey(o.theme) : undefined) ?? themes[0]!;
   if (!o.theme) {
     // A typo in --theme should say so rather than silently play the default.
@@ -445,12 +449,14 @@ export async function main(argv: string[]): Promise<number> {
       // command, so `tokenmate play --level 12` never blocks on a screen.
       const bare = argv.length === 0 || (argv.length === 1 && argv[0] === "play");
       if (!bare) return cmdPlay(parsed.command.opts);
+      const prefs = loadPrefs();
       const chosen = await runSetup(new PlainTerminal(), {
-        level: parsed.command.opts.level,
-        color: parsed.command.opts.color,
-        theme: parsed.command.opts.theme ?? (themes[0]?.key ?? "slate"),
+        level: prefs.level,
+        color: prefs.color,
+        theme: prefs.theme,
       });
       if (!chosen) return 0;
+      savePrefs({ level: chosen.level, color: chosen.color, theme: chosen.theme });
       return cmdPlay({ ...parsed.command.opts, level: chosen.level, color: chosen.color, theme: chosen.theme });
     }
     default:
