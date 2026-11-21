@@ -104,7 +104,15 @@ export class PlainTerminal implements Terminal {
   }
 
   size(): Size {
-    return clampSize({ cols: this.io.stdout.columns ?? 80, rows: this.io.stdout.rows ?? 24 });
+    // A pty can report 0 (or nothing) before the first resize event, and `?? 80`
+    // only catches `undefined` — a 0 went through and collapsed the screen to one
+    // column of "terminal too small". Treat any non-positive report as unknown.
+    const cols = this.io.stdout.columns;
+    const rows = this.io.stdout.rows;
+    return clampSize({
+      cols: typeof cols === "number" && cols > 0 ? cols : 80,
+      rows: typeof rows === "number" && rows > 0 ? rows : 24,
+    });
   }
 
   draw(frame: string): void {

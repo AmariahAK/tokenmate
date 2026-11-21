@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { runGame, type EngineSeat, type Seat } from "../src/cli/play";
 import { Session } from "../src/game/session";
 import { themes } from "../src/ui/theme";
-import { colorModeOf, normalizeKey, type Key, type Size, type Terminal } from "../src/terminal";
+import { colorModeOf, normalizeKey, PlainTerminal, type Key, type Size, type Terminal } from "../src/terminal";
 import { doctorReport, type DoctorFacts } from "../src/cli/doctor";
 import type { ColorMode } from "../src/ui/ansi";
 import type { Settings } from "../src/engine/any-uci";
@@ -207,6 +207,20 @@ describe("terminal keys and colour", () => {
     expect(normalizeKey({ sequence: "?", name: "?" })).toEqual({ type: "char", ch: "?", ctrl: false, shift: false });
     expect(normalizeKey({ sequence: "/", name: "/", shift: true })).toEqual({ type: "char", ch: "?", ctrl: false, shift: true });
     expect(normalizeKey({ sequence: "\u0000", name: undefined })).toBeNull();
+  });
+
+  test("a pty reporting 0 columns is treated as unknown, not as a 1-column window", () => {
+    const make = (columns: number | undefined, rows: number | undefined) =>
+      new PlainTerminal({
+        stdin: { on() {}, off() {}, setRawMode() {}, isTTY: true } as never,
+        stdout: { columns, rows, on() {}, off() {}, write() {} } as never,
+        env: { TERM: "xterm-256color" },
+      });
+    // Measured: under `script -q /dev/null` the pty reports 0, which `?? 80` let
+    // through and collapsed the whole screen to one column.
+    expect(make(0, 0).size()).toEqual({ cols: 80, rows: 24 });
+    expect(make(undefined, undefined).size()).toEqual({ cols: 80, rows: 24 });
+    expect(make(96, 37).size()).toEqual({ cols: 96, rows: 37 });
   });
 
   test("NO_COLOR wins, unknown TERM drops to 256, truecolor is earned", () => {

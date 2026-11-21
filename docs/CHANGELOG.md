@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A pty that reports `columns: 0` collapsed the entire screen to a one-column "terminal too small" message: the fallback
+  used `?? 80`, which only catches `undefined`, so a `0` went straight through. Found by running the app under a pty
+  rather than by any unit test, which is why there is now one with `0` in it.
 - En passant was reported as a **quiet move**: chess.js 1.4.0 returns `false` from `isCapture()` for it while still
   reporting the taken pawn, so the legal-move list a model reads had the capture flag wrong. Caught by a test that
   asserted the flag, not by review.
