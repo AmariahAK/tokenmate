@@ -81,6 +81,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- The engine's reply was never painted: the loop redrew *before* searching, so after the opponent moved the board and
+  the status line stayed one move behind until an unrelated keypress. Found by reading a frame out of a real pty, and
+  now asserted by a test that presses nothing after the reply lands.
+- The hint key could not be reached. `h` is vim-left in the movement aliases, and the movement branch returns first, so
+  `h` always moved the cursor and the hint code was dead. The hint is now `H`, and a shifted letter is never swallowed
+  as a cursor move.
+- The help overlay promised `t`, `c`, `tab`, `m`, `d`, `p` and `ctrl+r`, none of which `handle` implements. It now lists
+  only the keys that exist; the missing ones are tracked in [TODO.md](TODO.md) instead of advertised in-app.
 - One copyleft dependency is examined and allowed: `@opentui/core-*` statically links a decode-only FFmpeg 9.0.2 built
   with GPL and non-free parts disabled. It is installed from npm rather than redistributed, and the dylib is never
   baked into our build output. Reasoning in

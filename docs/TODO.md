@@ -65,6 +65,10 @@ derivation and centring proof all passed their gates in the prototype, and re-de
       `src/ui/screens.ts`; there is no separate `app.ts` — the composer and the loop in `src/cli/play.ts` cover it)
 - [x] panels: eval bar, move list, analysis/thoughts, captured, clocks
 - [x] keyboard + hjkl aliases, `?` help overlay
+- [ ] the keys the help overlay used to advertise, now tracked here instead: `t` take back one ply, `ctrl+r` redo,
+      `d` offer/accept a draw, `p` save, `c` coach commentary toggle, `tab` panel focus, `m` mouse mode.
+      `session.ts` already supports redo, takeback(1), `offerDraw`/`acceptDraw` and `resume.save`, so this is key
+      wiring plus a redraw, not new rules.
 - [ ] mouse click-to-move
 - [x] setup screen wired in: bare `tokenmate` opens `src/cli/setup.ts` — Play / Level / Colour / Theme / Quit, with the
       20-level ladder and the Elo each level plays. `play --level N` skips it, so flags still script the game. Level,

@@ -8,7 +8,9 @@ import type { ColorMode } from "../src/ui/ansi";
 import type { Settings } from "../src/engine/any-uci";
 import { makeChat, splitRef, ChatConfigError } from "../src/models/chat";
 import { createBuiltin } from "../src/builtin/index";
-import { setupScreen } from "../src/ui/screens";
+import { Position, moveToUci } from "../src/builtin/position";
+import { searchRoot } from "../src/builtin/search";
+import { HELP, setupScreen } from "../src/ui/screens";
 import { displayWidth } from "../src/ui/grid";
 import { runSetup } from "../src/cli/setup";
 
@@ -91,6 +93,41 @@ const base = (over: Partial<Parameters<typeof runGame>[0]> = {}) => {
     } satisfies Parameters<typeof runGame>[0],
   };
 };
+
+const square = (name: string) => ({ file: "abcdefgh".indexOf(name[0]!), rank: Number(name[1]) - 1 });
+
+/**
+ * A player at the keyboard: arrows to a square, space to select. Used instead of
+ * `session.move` wherever the test has to prove the input path, not the rules.
+ */
+class Player {
+  private at = { file: 4, rank: 3 };
+
+  constructor(private terminal: FakeTerminal) {}
+
+  async move(uci: string): Promise<void> {
+    await this.walk(square(uci.slice(0, 2)));
+    await this.terminal.press(select);
+    await this.walk(square(uci.slice(2, 4)));
+    await this.terminal.press(select);
+  }
+
+  private async walk(to: { file: number; rank: number }): Promise<void> {
+    const step = async (axis: "file" | "rank", to: number) => {
+      while (this.at[axis] !== to) {
+        const forward = this.at[axis] < to;
+        const key: Key =
+          axis === "file"
+            ? { type: "special", name: forward ? "right" : "left", shift: false }
+            : { type: "special", name: forward ? "up" : "down", shift: false };
+        await this.terminal.press(key);
+        this.at = { ...this.at, [axis]: this.at[axis] + (forward ? 1 : -1) };
+      }
+    };
+    await step("file", to.file);
+    await step("rank", to.rank);
+  }
+}
 
 describe("the game loop", () => {
   test("cursor keys select a piece and play a legal move", async () => {
@@ -215,6 +252,118 @@ describe("the game loop", () => {
     expect(terminal.last).toContain("the English");
     await terminal.press(char("q"));
     await playing;
+  });
+
+  test("the engine's reply is on screen before the player presses another key", async () => {
+    // Measured before the fix: after `e4 Nc6` the frame still showed "black to move"
+    // and a board without the knight, until an unrelated keypress repainted it.
+    const { opts, session, terminal } = base({
+      seatOf: { white: { kind: "human" }, black: { kind: "engine" } },
+      labelOf: { white: "you", black: "built-in · level 4" },
+      engine: createBuiltin(4),
+      level: 4,
+      levelElo: 750,
+    });
+    const playing = runGame(opts);
+
+    await terminal.press(down);
+    await terminal.press(down); // e2
+    await terminal.press(select);
+    await terminal.press(up);
+    await terminal.press(up); // e4
+    await terminal.press(select);
+
+    const reply = () => session.status().history[1];
+    for (let i = 0; i < 600 && !reply(); i++) await Bun.sleep(5);
+    const ply = reply();
+    expect(ply).toBeDefined();
+
+    // No key has been pressed since: the frame itself must show the new position.
+    expect(terminal.last).toContain("white to move");
+    expect(terminal.last).toContain(ply!.san);
+    await terminal.press(char("q"));
+    await playing;
+  });
+
+  test("h moves the cursor left; the hint is on shift+H", async () => {
+    const { opts, terminal } = base({
+      seatOf: { white: { kind: "human" }, black: { kind: "engine" } },
+      engine: engineSeat("g1f3"),
+    });
+    const playing = runGame(opts);
+
+    // Cursor starts on e4; two h presses put it on c4, so selecting twice asks for
+    // c4-d4 and the refusal names the squares the cursor actually visited.
+    await terminal.press(char("h"));
+    await terminal.press(select);
+    await terminal.press(char("h"));
+    await terminal.press(select);
+    expect(terminal.last).toContain("d4-c4 is not legal");
+    expect(terminal.last).not.toContain("engine suggests");
+
+    await terminal.press({ type: "char", ch: "H", ctrl: false, shift: true });
+    expect(terminal.last).toContain("engine suggests g1f3");
+    await terminal.press(char("q"));
+    await playing;
+  });
+
+  test("a whole game runs to checkmate on the keyboard alone", async () => {
+    // The question this answers: after choosing a level, can a person play a full
+    // game? Every move here goes through the cursor and space, as a player's would.
+    const { opts, session, terminal } = base({
+      seatOf: { white: { kind: "human" }, black: { kind: "engine" } },
+      labelOf: { white: "you", black: "built-in · level 1" },
+      engine: createBuiltin(1),
+      level: 1,
+      levelElo: 800,
+    });
+    const playing = runGame(opts);
+    const me = new Player(terminal);
+    const until = async (ok: () => boolean, what: string): Promise<void> => {
+      for (let i = 0; i < 2000; i++) {
+        if (ok()) return;
+        await Bun.sleep(2);
+      }
+      throw new Error(`timed out waiting for ${what}`);
+    };
+    const myTurn = () => session.status().turn === "w" || session.status().over;
+
+    for (let guard = 0; guard < 200 && !session.status().over; guard++) {
+      const st = session.status();
+      if (st.turn !== "w") {
+        await until(myTurn, "the engine's reply");
+        continue;
+      }
+      const best = searchRoot(Position.fromFen(st.fen), { maxDepth: 3, movetime: 2000, multiPv: 1 })[0]!;
+      await me.move(moveToUci(best.move));
+      await until(myTurn, "the engine's reply");
+    }
+
+    const st = session.status();
+    expect(st.over).toBe(true);
+    expect(st.outcome).toEqual({ reason: "checkmate", winner: "w" });
+    expect(st.result).toBe("1-0");
+    expect(terminal.last).toContain("white wins by checkmate");
+    expect(session.pgn()).toContain('[Result "1-0"]');
+    await terminal.press(char("q"));
+    await playing;
+  });
+
+  test("the help screen lists only keys the loop actually handles", () => {
+    // A registry on purpose: the overlay used to promise t, c, tab, m, d, p and
+    // ctrl+r, none of which `handle` implements. Editing this list has to be a
+    // deliberate act, made together with the handler.
+    expect(HELP.map(([key]) => key)).toEqual([
+      "↑ ↓ ← → / h j k l",
+      "space / enter",
+      "esc",
+      "u",
+      "H",
+      "s",
+      "r",
+      "?",
+      "q",
+    ]);
   });
 
   test("help toggles and the frame changes with it", async () => {

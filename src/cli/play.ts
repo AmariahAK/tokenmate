@@ -160,6 +160,9 @@ export async function runGame(opts: GameOptions): Promise<void> {
       notice = err instanceof Error ? err.message : String(err);
     } finally {
       thinking = false;
+      // The reply — or the failure that replaced it — only reaches the screen here.
+      // Without this the board stays a move behind until the player touches a key.
+      if (!finished) render();
     }
   };
 
@@ -183,6 +186,10 @@ export async function runGame(opts: GameOptions): Promise<void> {
     up: [0, 1], k: [0, 1], down: [0, -1], j: [0, -1], left: [-1, 0], h: [-1, 0], right: [1, 0], l: [1, 0],
   };
 
+  // `h` is vim-left, so the hint has to be the shifted key. Letter keys arrive
+  // upper case when shifted, and a shift is never swallowed as a cursor move.
+  const isHint = (key: Key) => key.type === "char" && (key.ch === "H" || (key.ch === "h" && key.shift));
+
   const handle = async (key: Key): Promise<void> => {
     if (key.type === "char" && key.ch === "q" && !key.ctrl) return quit();
     if (help) {
@@ -197,7 +204,7 @@ export async function runGame(opts: GameOptions): Promise<void> {
       selected = null;
       return render();
     }
-    const delta = key.type === "special" ? ARROWS[key.name] : key.type === "char" ? ARROWS[key.ch] : undefined;
+    const delta = key.type === "special" ? ARROWS[key.name] : key.type === "char" && !key.shift ? ARROWS[key.ch] : undefined;
     if (delta) {
       cursor = { file: Math.min(7, Math.max(0, cursor.file + delta[0])), rank: Math.min(7, Math.max(0, cursor.rank + delta[1])) };
       return render();
@@ -232,7 +239,7 @@ export async function runGame(opts: GameOptions): Promise<void> {
       theme = themes[(at + 1) % themes.length]!;
       return render();
     }
-    if (key.ch === "h") {
+    if (isHint(key)) {
       const candidates = await search();
       if (candidates?.[0]) {
         hints = [candidates[0].move];

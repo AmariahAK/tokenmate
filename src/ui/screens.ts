@@ -207,7 +207,7 @@ export function gameScreen(v: GameView): Grid {
     });
   }
 
-  const foot = v.notice ?? "↑↓←→/hjkl move · space select · u undo · h hint · r resign · ? help · q quit";
+  const foot = v.notice ?? "↑↓←→/hjkl move · space select · u undo · H hint · r resign · ? help · q quit";
   g.text(0, v.rows - 1, foot, { fg: v.notice ? "#E05252" : v.theme.coord }, v.cols);
 
   g.assertBorders("game screen");
@@ -218,17 +218,10 @@ export const HELP: [string, string][] = [
   ["↑ ↓ ← → / h j k l", "move the cursor"],
   ["space / enter", "select a piece, then move"],
   ["esc", "deselect"],
-  ["u", "undo your last move"],
-  ["ctrl+r", "redo"],
-  ["t", "take back one move (vs engine)"],
-  ["h", "hint — engine's best move"],
-  ["c", "toggle coach commentary"],
-  ["tab", "switch focus between board and panels"],
-  ["m", "mouse mode on/off"],
-  ["s", "cycle skin"],
+  ["u", "take back your last move"],
+  ["H", "hint — the engine's best move"],
+  ["s", "cycle theme"],
   ["r", "resign"],
-  ["d", "offer / accept a draw"],
-  ["p", "save the game (resume later)"],
   ["?", "this help"],
   ["q", "quit"],
 ];

@@ -79,8 +79,8 @@ Bare `tokenmate` asks the two questions a first run cannot guess — how strong 
 with the Elo each one plays, so you never need `--help` to start. Levels with `sampled` beside them are weak by
 sampling among the engine's own candidates; `native` levels use the engine's own `UCI_Elo`.
 
-Controls: arrows or `hjkl` to move, `space` to select and move, `esc` to cancel, `u` to take back, `h` for a hint,
-`s` to change skin, `?` for help, `q` to quit.
+Controls: arrows or `hjkl` to move, `space` to select and move, `esc` to cancel, `u` to take back, `H` for a hint
+(the unshifted `h` is vim-left), `s` to change theme, `r` to resign, `?` for help, `q` to quit.
 
 Each level prints the Elo it actually plays, and that number is honest: levels 1–7 sample among the engine's own
 candidate moves because no engine can be told to play below its floor, and `doctor` says so when your build cannot

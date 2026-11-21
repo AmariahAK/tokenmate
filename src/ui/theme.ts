@@ -54,8 +54,11 @@ export const themes: Theme[] = [
     {
       light: atLum("#C0AE97", 0.190),
       dark: atLum("#5A6E85", 0.170),
-      whiteBody: "#FFFFFF",
-      blackBody: "#0B0F14",
+      // Pieces must pop against BOTH square colours. Pure white/black vanish
+      // against the square they match. Cream and near-black with enough
+      // distance from both squares keeps them legible everywhere.
+      whiteBody: "#F0E6D0",
+      blackBody: "#1A1A2E",
       accents: { last: AMBER, selected: BLUE, check: RED },
       blend: 0.7,
     },
@@ -67,8 +70,8 @@ export const themes: Theme[] = [
     {
       light: atLum("#CBA97B", 0.190),
       dark: atLum("#6B4F32", 0.170),
-      whiteBody: "#FFFFFF",
-      blackBody: "#0B0F14",
+      whiteBody: "#F5ECD7",
+      blackBody: "#1A1A2E",
       accents: { last: AMBER, selected: BLUE, check: RED },
       blend: 0.7,
     },
@@ -80,8 +83,8 @@ export const themes: Theme[] = [
     {
       light: atLum("#AAB28F", 0.190),
       dark: atLum("#4E6155", 0.170),
-      whiteBody: "#FFFFFF",
-      blackBody: "#0B0F14",
+      whiteBody: "#F0E6D0",
+      blackBody: "#1A1A2E",
       accents: { last: AMBER, selected: BLUE, check: RED },
       blend: 0.7,
     },
@@ -93,11 +96,11 @@ export const themes: Theme[] = [
   // terminal the pieces still separate by brightness, and glyph fill in compact mode.
   mk(
     {
-      light: atLum("#9E9E9E", 0.260),
-      dark: atLum("#6E6E6E", 0.130),
+      light: atLum("#9E9E9E", 0.280),
+      dark: atLum("#6E6E6E", 0.110),
       whiteBody: "#FFFFFF",
-      blackBody: "#0B0F14",
-      accents: { last: "#8A6A18", selected: "#2C6098", check: "#962C2C" },
+      blackBody: "#1A1A2E",
+      accents: { last: "#9A7A28", selected: "#3C70A8", check: "#C04040" },
       blend: 0.65,
     },
     "mono",

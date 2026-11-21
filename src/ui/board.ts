@@ -1,12 +1,32 @@
 import { Grid } from "./grid";
 import { square, type State, type Theme } from "./theme";
 
-// Side is encoded by glyph fill as well as colour, so a monochrome or
-// colour-blind-broken theme still separates the two sides.
-export const GLYPHS: Record<"w" | "b", Record<string, string>> = {
+// Two piece styles: Unicode chess glyphs (pretty but tiny in most terminal fonts)
+// and uppercase/lowercase letters (fill the cell and are always legible).
+// The default is "letter" because it works in every font at every size.
+export type PieceStyle = "letter" | "unicode";
+
+const UNICODE_GLYPHS: Record<"w" | "b", Record<string, string>> = {
   w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
   b: { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" },
 };
+
+const LETTER_GLYPHS: Record<"w" | "b", Record<string, string>> = {
+  w: { k: "K", q: "Q", r: "R", b: "B", n: "N", p: "P" },
+  b: { k: "k", q: "q", r: "r", b: "b", n: "n", p: "p" },
+};
+
+let activePieceStyle: PieceStyle = "letter";
+export const setPieceStyle = (s: PieceStyle) => { activePieceStyle = s; };
+export const getPieceStyle = () => activePieceStyle;
+
+export const GLYPHS = new Proxy({} as Record<"w" | "b", Record<string, string>>, {
+  get(_target, side: string) {
+    return activePieceStyle === "unicode"
+      ? UNICODE_GLYPHS[side as "w" | "b"]
+      : LETTER_GLYPHS[side as "w" | "b"];
+  },
+});
 
 export type Marks = { lastMove?: [string, string]; selected?: string; check?: string };
 
@@ -52,18 +72,19 @@ export const TIERS = {
 
 export type Tier = keyof typeof TIERS;
 
-// Chess glyphs are East-Asian-ambiguous, so a square reserves two cells for one
-// and centres it inside those two. Everything else is padding, and because the
-// padding is symmetric the glyph lands dead centre whatever the terminal decides.
-const GLYPH_W = 2;
+// Chess glyphs are East-Asian-ambiguous (2 cells wide); letters are 1 cell.
+// The padding maths centres whichever is active.
+const glyphWidth = () => activePieceStyle === "unicode" ? 2 : 1;
 
 // Symmetric padding needs the leftover columns to be even and the leftover rows
-// to split in two, so cw must be even and ch odd. Off-centre becomes impossible
-// rather than merely unlikely, and an invalid tier throws instead of drawing.
+// to split in two, so cw must be even and ch odd for unicode (2-cell glyph).
+// For letters (1-cell) any odd cw also centres, but even cw puts the letter
+// half a cell left of centre — close enough at 4 cells wide.
 export const padding = (cw: number, ch: number) => {
-  if (cw % 2 !== 0 || ch % 2 === 0)
-    throw new Error(`square ${cw}×${ch}: need even cw and odd ch to centre a ${GLYPH_W}-cell glyph`);
-  return { px: (cw - GLYPH_W) / 2, py: (ch - 1) / 2 };
+  const gw = glyphWidth();
+  const px = Math.floor((cw - gw) / 2);
+  const py = Math.floor((ch - 1) / 2);
+  return { px, py };
 };
 
 export function drawSquareBox(
